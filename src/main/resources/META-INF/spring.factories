@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  io.vanillabp.springboot.utils.JpaSpringDataUtilConfiguration,\
+  io.vanillabp.springboot.modules.WorkflowModulePropertiesConfiguration
