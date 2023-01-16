@@ -2,14 +2,19 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>io.vanillabp</groupId>
+  <parent>
+    <groupId>io.vanillabp</groupId>
+    <artifactId>release-parent</artifactId>
+    <version>1.0.1</version>
+  </parent>
+
   <artifactId>spring-boot-support</artifactId>
   <name>Abstract VanillaBP SPI adapter for Spring Boot</name>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.0</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <vanillabp.version>0.0.1-SNAPSHOT</vanillabp.version>
+    <vanillabp.version>1.0.0</vanillabp.version>
   </properties>
 
   <build>
