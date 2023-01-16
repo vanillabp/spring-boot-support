@@ -295,6 +295,9 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
             try (final var yamlStream = resource.getInputStream()) {
 
                 Map<String, Object> content = yaml.load(yamlStream);
+                if (content == null) {
+                    return null;
+                }
 
                 return content
                         .entrySet()
