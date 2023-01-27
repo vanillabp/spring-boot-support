@@ -1,5 +1,6 @@
 package io.vanillabp.springboot.modules;
 
+import io.vanillabp.springboot.utils.CaseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
@@ -30,33 +31,25 @@ public class WorkflowModulePropertiesConfiguration {
 
         final var resources = new LinkedList<Resource>();
         for (final var module : modules) {
-            final var defaultsYaml = new ClassPathResource(
-                    "/config/" + module.getWorkflowModuleId() + ".yaml");
-            if (defaultsYaml.exists()) {
-                logger.debug("Adding yaml-file: {}", defaultsYaml.getDescription());
-                resources.add(defaultsYaml);
-            }
-            final var defaultsYml = new ClassPathResource(
-                    "/config/" + module.getWorkflowModuleId() + ".yaml");
-            if (defaultsYml.exists()) {
-                logger.debug("Adding yaml-file: {}", defaultsYml.getDescription());
-                resources.add(defaultsYml);
+            
+            // add e.g. taxiRide.yml or taxiRide.yaml
+            if (!addYaml(resources, module.getWorkflowModuleId())) {
+                // or taxi-ride.yml or taxi-ride.yaml
+                addYaml(resources,
+                        CaseUtils.camelToKebap(module.getWorkflowModuleId()));
             }
 
             for (final var profile : environment.getActiveProfiles()) {
-                final var rYaml = new ClassPathResource(
-                        "/config/" + module.getWorkflowModuleId() + "-" + profile + ".yaml");
-                if (rYaml.exists()) {
-                    logger.debug("Adding yaml-file: {}", rYaml.getDescription());
-                    resources.add(rYaml);
+
+                // add e.g. taxiRide-local.yml or taxiRide-local.yaml
+                if (addYaml(resources, module.getWorkflowModuleId() + "-" + profile)) {
+                    // or taxi-ride-local.yml or taxi-ride-local.yaml
+                    addYaml(resources,
+                            CaseUtils.camelToKebap(module.getWorkflowModuleId()) + "-" + profile);
                 }
-                final var rYml = new ClassPathResource(
-                        "/config/" + module.getWorkflowModuleId() + "-" + profile + ".yml");
-                if (rYml.exists()) {
-                    logger.debug("Adding yaml-file: {}", rYml.getDescription());
-                    resources.add(rYml);
-                }
+
             }
+
         }
 
         final var yaml = new YamlPropertiesFactoryBean();
@@ -68,6 +61,30 @@ public class WorkflowModulePropertiesConfiguration {
         ppc.setEnvironment(environment);
         return ppc;
 
+    }
+
+    private static boolean addYaml(
+            final LinkedList<Resource> resources,
+            final String filename) {
+        
+        final var defaultsYaml = new ClassPathResource(
+                "/config/" + filename + ".yaml");
+        if (defaultsYaml.exists()) {
+            logger.debug("Adding yaml-file: {}", defaultsYaml.getDescription());
+            resources.add(defaultsYaml);
+            return true;
+        }
+        
+        final var defaultsYml = new ClassPathResource(
+                "/config/" + filename + ".yml");
+        if (defaultsYml.exists()) {
+            logger.debug("Adding yaml-file: {}", defaultsYml.getDescription());
+            resources.add(defaultsYml);
+            return true;
+        }
+        
+        return false;
+        
     }
 
 }

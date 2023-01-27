@@ -1,7 +1,5 @@
 package io.vanillabp.springboot.modules;
 
-import io.vanillabp.springboot.utils.CaseUtils;
-
 public class WorkflowModuleProperties implements WorkflowModuleIdAwareProperties {
 	
     private Class<?> propertiesClass;
@@ -14,20 +12,6 @@ public class WorkflowModuleProperties implements WorkflowModuleIdAwareProperties
     	
     	this.propertiesClass = propertiesClass;
         this.moduleId = moduleId;
-        
-    }
-
-    public WorkflowModuleProperties(
-            final Class<? extends WorkflowModuleIdAwareProperties> propertiesClass,
-    		final String moduleId,
-    		final boolean isCamelCase) {
-    	
-    	this.propertiesClass = propertiesClass;
-        if (isCamelCase) {
-            this.moduleId = CaseUtils.camelToKebap(moduleId);
-        } else {
-            this.moduleId = moduleId;
-        }
         
     }
 
