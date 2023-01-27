@@ -3,6 +3,7 @@ package io.vanillabp.springboot.utils;
 import io.vanillabp.springboot.adapter.SpringDataUtil;
 import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationContext;
+import org.springframework.data.jpa.repository.JpaContext;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -19,17 +20,22 @@ public class JpaSpringDataUtil implements SpringDataUtil {
 
     private final LocalContainerEntityManagerFactoryBean containerEntityManagerFactoryBean;
     
+    private final JpaContext jpaContext;
+    
     public JpaSpringDataUtil(
             final ApplicationContext applicationContext,
+            final JpaContext jpaContext,
             final LocalContainerEntityManagerFactoryBean containerEntityManagerFactoryBean) {
         
         this.applicationContext = applicationContext;
+        this.jpaContext = jpaContext;
         this.containerEntityManagerFactoryBean = containerEntityManagerFactoryBean;
         
     }
 
     @SuppressWarnings("unchecked")
-    public <O> JpaRepository<? super O, String> getRepository(O object) {
+    public <O> JpaRepository<? super O, String> getRepository(
+            final O object) {
 
         //noinspection unchecked
         return getRepository((Class<O>) object.getClass());
@@ -37,7 +43,8 @@ public class JpaSpringDataUtil implements SpringDataUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public <O> JpaRepository<O, String> getRepository(Class<O> type) {
+    public <O> JpaRepository<O, String> getRepository(
+            final Class<O> type) {
 
         Class<? super O> cls = type;
 
@@ -77,9 +84,21 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         
     }
     
+    @Override
+    public <O> boolean isPersistedEntity(
+            final Class<O> entityClass,
+            final O entity) {
+        
+        final var em = jpaContext
+                .getEntityManagerByManagedType(entityClass);
+        return em.contains(entity);
+
+    }
+    
     @SuppressWarnings("unchecked")
     @Override
-    public <O> O unproxy(O entity) {
+    public <O> O unproxy(
+            final O entity) {
         
         return (O) Hibernate.unproxy(entity);
         

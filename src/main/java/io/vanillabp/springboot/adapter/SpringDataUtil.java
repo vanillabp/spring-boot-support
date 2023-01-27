@@ -44,4 +44,15 @@ public interface SpringDataUtil {
      */
     <O> O unproxy(O entity);
     
+    /**
+     * Determines whether the given entity was loaded/persisted from/to DB before
+     * or it is a POJO (e.g. right before persisting).
+     * 
+     * @param <O> the entity's type
+     * @param entityClass The entity's class
+     * @param entity The entity
+     * @return Entity was loaded/persisted from/to DB before
+     */
+    <O> boolean isPersistedEntity(Class<O> entityClass, O entity);
+    
 }
