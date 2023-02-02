@@ -10,11 +10,11 @@
 
   <artifactId>spring-boot-support</artifactId>
   <name>Abstract VanillaBP SPI adapter for Spring Boot</name>
-  <version>1.0.1-SNAPSHOT</version>
+  <version>1.0.2-SNAPSHOT</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <vanillabp.version>1.0.0</vanillabp.version>
+    <vanillabp.version>1.0.1</vanillabp.version>
     <version.java>11</version.java>
   </properties>
 
