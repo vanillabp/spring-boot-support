@@ -42,7 +42,7 @@ public class WorkflowModulePropertiesConfiguration {
             for (final var profile : environment.getActiveProfiles()) {
 
                 // add e.g. taxiRide-local.yml or taxiRide-local.yaml
-                if (addYaml(resources, module.getWorkflowModuleId() + "-" + profile)) {
+                if (!addYaml(resources, module.getWorkflowModuleId() + "-" + profile)) {
                     // or taxi-ride-local.yml or taxi-ride-local.yaml
                     addYaml(resources,
                             CaseUtils.camelToKebap(module.getWorkflowModuleId()) + "-" + profile);
