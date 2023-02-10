@@ -143,7 +143,7 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
             throw new RuntimeException(
                     "Multiple beans annotated with @WorkflowService(bpmnProcessId=\""
                     + bpmnProcessId
-                    + "\") found having different generic parameters, but should all the same: "
+                    + "\") found having different generic parameters, but should all be the same: "
                     + found);
             
         }
