@@ -2,7 +2,10 @@ package io.vanillabp.springboot.adapter;
 
 import io.vanillabp.spi.process.ProcessService;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
@@ -13,7 +16,9 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
 
     private String workflowModuleId;
 
-    private String bpmnProcessId;
+    private String primaryBpmnProcessId;
+    
+    private Set<String> bpmnProcessIds = new HashSet<>();
 
     public AdapterAwareProcessService(
             final VanillaBpProperties properties,
@@ -26,10 +31,29 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         
     }
     
+    public String getPrimaryBpmnProcessId() {
+        
+        return primaryBpmnProcessId;
+        
+    }
+    
+    public Collection<String> getBpmnProcessIds() {
+        
+        return bpmnProcessIds;
+        
+    }
+    
+    public String getWorkflowModuleId() {
+        
+        return workflowModuleId;
+        
+    }
+    
     public void wire(
             final String adapterId,
             final String workflowModuleId,
-            final String bpmnProcessId) {
+            final String bpmnProcessId,
+            final boolean isPrimary) {
         
         if ((this.workflowModuleId != null)
                 && (workflowModuleId != null)
@@ -54,8 +78,8 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             
         }
 
-        if ((this.bpmnProcessId != null)
-                && !this.bpmnProcessId.equals(bpmnProcessId)) {
+        if (bpmnProcessIds.contains(bpmnProcessId)
+                && !processServicesByAdapter.containsKey(adapterId)) {
             
             final var listOfAdapters = processServicesByAdapter
                     .keySet()
@@ -72,16 +96,17 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                     + adapterId
                     + "' to workflow-aggregate-class '"
                     + processServicesByAdapter.values().iterator().next().getWorkflowAggregateClass()
-                    + "' is not possible, because it was wired to '"
-                    + this.bpmnProcessId
-                    + "' by these adapters before: '"
+                    + "' is not possible, because it was already wired by these adapters: '"
                     + listOfAdapters
                     + "'!");
             
         }
 
         this.workflowModuleId = workflowModuleId;
-        this.bpmnProcessId = bpmnProcessId;
+        if (isPrimary) {
+            this.primaryBpmnProcessId = bpmnProcessId;
+        }
+        this.bpmnProcessIds.add(bpmnProcessId);
         
     }
 
@@ -98,7 +123,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                         .map(item -> Map.entry(entry.getKey(), item)))
                 .filter(entry -> entry
                         .getValue()
-                        .matches(workflowModuleId, bpmnProcessId))
+                        .matchesAny(workflowModuleId, bpmnProcessIds))
                 .findFirst()
                 .map(Map.Entry::getKey)
                 .orElse(properties.getDefaultAdapter());
@@ -119,13 +144,6 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         return processServicesByAdapter
                 .get(determineAdapterId())
                 .startWorkflow(workflowAggregate);
-
-    }
-
-    @Override
-    public String getBpmnProcessId() {
-        
-        return bpmnProcessId;
 
     }
 

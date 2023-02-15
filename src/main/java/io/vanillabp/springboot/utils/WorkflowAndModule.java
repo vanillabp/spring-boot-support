@@ -1,5 +1,7 @@
 package io.vanillabp.springboot.utils;
 
+import java.util.Collection;
+
 public class WorkflowAndModule {
     
     private String workflowModuleId;
@@ -39,6 +41,28 @@ public class WorkflowAndModule {
         
     }
 
+    public boolean matchesAny(
+            final String workflowModuleId,
+            final Collection<String> bpmnProcessIds) {
+        
+        if ((this.workflowModuleId != null)
+                && (workflowModuleId != null)) {
+            if (!this.workflowModuleId.equals(workflowModuleId)) {
+                return false;
+            }
+        }
+        
+        if (this.bpmnProcessId == null) {
+            return true;
+        }
+        if (bpmnProcessId == null) {
+            return true;
+        }
+        
+        return bpmnProcessIds.contains(this.bpmnProcessId);
+        
+    }
+
     public boolean matches(
             final String workflowModuleId,
             final String bpmnProcessId) {
@@ -57,7 +81,7 @@ public class WorkflowAndModule {
             return true;
         }
         
-        return this.bpmnProcessId.equals(workflowModuleId);
+        return this.bpmnProcessId.equals(bpmnProcessId);
         
     }
     

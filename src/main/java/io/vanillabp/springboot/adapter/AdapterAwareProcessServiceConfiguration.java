@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Scope;
 import org.springframework.util.StringUtils;
 
@@ -32,6 +33,7 @@ public class AdapterAwareProcessServiceConfiguration {
     
     @SuppressWarnings("unchecked")
     @Bean
+    @Primary
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     public <DE> ProcessService<?> adapterAwareProcessService(
             final SpringDataUtil springDataUtil,

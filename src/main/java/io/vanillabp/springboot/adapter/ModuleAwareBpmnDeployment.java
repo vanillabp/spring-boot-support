@@ -76,7 +76,7 @@ public abstract class ModuleAwareBpmnDeployment {
                 .filter(entry -> entry.getKey().equals(getAdapterId()))
                 .findFirst()
                 .map(entry -> entry.getValue().getResourcesPath())
-                .or(() -> Optional.of(properties.getResourcesPath()))
+                .or(() -> Optional.ofNullable(properties.getResourcesPath()))
                 .orElse(DEFAULT_RESOURCES_PATH);
 
     }
