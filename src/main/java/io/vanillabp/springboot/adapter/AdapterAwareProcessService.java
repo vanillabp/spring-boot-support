@@ -102,7 +102,9 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             
         }
 
-        this.workflowModuleId = workflowModuleId;
+        if (this.workflowModuleId == null) {
+            this.workflowModuleId = workflowModuleId;
+        }
         if (isPrimary) {
             this.primaryBpmnProcessId = bpmnProcessId;
         }
