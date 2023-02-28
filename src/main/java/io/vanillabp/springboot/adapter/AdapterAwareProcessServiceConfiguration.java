@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Scope;
-import org.springframework.util.StringUtils;
+import org.springframework.util.CollectionUtils;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
@@ -99,32 +99,47 @@ public class AdapterAwareProcessServiceConfiguration {
         
         if (adapterConfigurations.isEmpty()) {
             
-            throw new RuntimeException("No VanillaBP adapter was found in classpath!");
+            throw new RuntimeException(
+                    "No VanillaBP adapter was found in classpath!");
             
         }
         
         if ((adapterConfigurations.size() > 1)
                 && ((properties == null)
-                        || !StringUtils.hasText(properties.getDefaultAdapter()))) {
+                        || CollectionUtils.isEmpty(properties.getDefaultAdapter()))) {
             
-            throw new RuntimeException("More than one VanillaBP adapter is found in classpath: '"
+            throw new RuntimeException(
+                    "More than one VanillaBP adapter is found in classpath: '"
                     + listOfAdapters
                     + "'! You have to define a default using the property 'vanillabp.default-adapter'.");
             
         }
         
         if ((properties != null)
-                && StringUtils.hasText(properties.getDefaultAdapter())
-                && adapterConfigurations
+                && !CollectionUtils.isEmpty(properties.getDefaultAdapter())
+                && properties
+                        .getDefaultAdapter()
                         .stream()
-                        .filter(c -> c.getAdapterId().equals(properties.getDefaultAdapter()))
+                        .filter(adapter -> adapterConfigurations
+                                .stream()
+                                .noneMatch(c -> c.getAdapterId().equals(adapter)))
                         .findFirst()
-                        .isEmpty()) {
+                        .isPresent()) {
             
-            throw new RuntimeException("Property 'vanillabp.default-adapter' is set to '"
-                    + properties.getDefaultAdapter()
-                    + "' but no VanillaBP adapter using this identifier was found in classpath!"
-                    + " This is available in classpath: '"
+            final var missingAdapters = properties
+                    .getDefaultAdapter()
+                    .stream()
+                    .filter(adapter -> adapterConfigurations
+                            .stream()
+                            .noneMatch(c -> c.getAdapterId().equals(adapter)))
+                    .collect(Collectors.joining("', '"));
+            
+            throw new RuntimeException(
+                    "Property 'vanillabp.default-adapter' is set to '"
+                    + properties.getDefaultAdapter().stream().collect(Collectors.joining(", "))
+                    + "' but this/these adapters are not in classpath: '"
+                    + missingAdapters
+                    + "'! Available adapters are: '"
                     + listOfAdapters
                     + "'.");
             
@@ -135,43 +150,96 @@ public class AdapterAwareProcessServiceConfiguration {
         }
         
         if (properties.getDefaultAdapter() == null) {
-            properties.setDefaultAdapter(adapterConfigurations.get(0).getAdapterId());
+            properties.setDefaultAdapter(List.of(adapterConfigurations.get(0).getAdapterId()));
         }
         
         properties
-                .getAdapters()
-                .entrySet()
+                .getWorkflows()
                 .stream()
-                .flatMap(entry -> entry
-                        .getValue()
-                        .getAdapterFor()
-                        .stream()
-                        .map(item -> Map.entry(entry.getKey(), item)))
-                .collect(Collectors.groupingBy(entry ->
-                        entry.getValue().getWorkflowModuleId()
+                .collect(Collectors.groupingBy(workflow ->
+                        workflow.getWorkflowModuleId()
                         + "#"
-                        + entry.getValue().getBpmnProcessId(),
-                        Collectors.mapping(entry -> entry.getKey(), Collectors.toSet())))
+                        + workflow.getBpmnProcessId(),
+                        Collectors.counting()))
                 .entrySet()
                 .stream()
-                .filter(entry -> entry.getValue().size() > 1)
+                .filter(entry -> entry.getValue() > 1)
                 .peek(entry -> {
                     final var workflowModuleIdAndBpmnProcessId = entry.getKey().split("#");
                     if (workflowModuleIdAndBpmnProcessId[0].equals("null")) {
-                        logger.error("BPMN process id '{}' was mapped to more than one VanillaBP adapter: '{}'",
-                                workflowModuleIdAndBpmnProcessId[1],
-                                entry.getValue().stream().collect(Collectors.joining("', '")));
+                        logger.error(
+                                "BPMN process id '{}' was found more than one time "
+                                + "in property 'vanillabp.adapters'!",
+                                workflowModuleIdAndBpmnProcessId[1]);
                     } else {
-                        logger.error("BPMN process id '{}' of workflow module '{}' was mapped to more than one VanillaBP adapter: '{}'",
+                        logger.error(
+                                "BPMN process id '{}' of workflow module '{}' was "
+                                + "found more than one time in property 'vanillabp.adapters'!",
                                 workflowModuleIdAndBpmnProcessId[1],
-                                workflowModuleIdAndBpmnProcessId[0],
-                                entry.getValue().stream().collect(Collectors.joining("', '")));
+                                workflowModuleIdAndBpmnProcessId[0]);
                     }
                 })
                 .findFirst()
                 .ifPresent(entry -> {
-                    throw new RuntimeException("At least one BPMN process id was mapped to more "
-                            + "than one VanillaBP adapter! Check previous error logs for details.");
+                    throw new RuntimeException(
+                            "At least one BPMN process id was configured more "
+                            + "than once in property 'vanillabp.workflows'! "
+                            + "Check previous error logs for details.");
+                });
+        
+        properties
+                .getWorkflows()
+                .stream()
+                .filter(workflow -> {
+                        final var hasUnknownAdapterConfigured = workflow
+                                .getAdapter()
+                                .stream()
+                                .filter(adapter -> adapterConfigurations
+                                        .stream()
+                                        .noneMatch(c -> c.getAdapterId().equals(adapter)))
+                                .findFirst()
+                                .isPresent();
+                        if (!hasUnknownAdapterConfigured) {
+                            return false;
+                        }
+                        
+                        final var missingAdapters = workflow
+                                .getAdapter()
+                                .stream()
+                                .filter(adapter -> adapterConfigurations
+                                        .stream()
+                                        .noneMatch(c -> c.getAdapterId().equals(adapter)))
+                                .collect(Collectors.joining("', '"));
+                        
+                        if (workflow.getWorkflowModuleId() == null) {
+                            logger.error(
+                                    "Property 'vanillabp.workflows[bpmn-process-id={}].adapters' is set to '{}' "
+                                    + "but this/these adapters are not in classpath: '{}'! "
+                                    + "Available adapters are: '{}'.",
+                                    workflow.getBpmnProcessId(),
+                                    workflow.getAdapter().stream().collect(Collectors.joining(", ")),
+                                    missingAdapters,
+                                    listOfAdapters);
+                        } else {
+                            logger.error(
+                                    "Property 'vanillabp.workflows[bpmn-process-id={}, workflow-module-id={}].adapters' is set to '{}' "
+                                    + "but this/these adapters are not in classpath: '{}'! "
+                                    + "Available adapters are: '{}'.",
+                                    workflow.getBpmnProcessId(),
+                                    workflow.getWorkflowModuleId(),
+                                    workflow.getAdapter().stream().collect(Collectors.joining(", ")),
+                                    missingAdapters,
+                                    listOfAdapters);
+                        }
+                        
+                        return true;
+                })
+                .findFirst()
+                .ifPresent(entry -> {
+                    throw new RuntimeException(
+                            "At least once the property 'vanillabp.workflows.*.adapter' "
+                            + "was set to an adapter not available in classpath! "
+                            + "Check previous error logs for details.");
                 });
         
     }

@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,9 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
             String workflowModuleId,
             Class<DE> workflowAggregateClass,
             String bpmnProcessId,
-            boolean isPrimary);
+            boolean isPrimary,
+            Collection<String> messageBasedStartEventsMessageNames,
+            Collection<String> signalBasedStartEventsSignalNames);
 
     protected Entry<Class<?>, Class<?>> determineWorkflowAggregateClass(
             final Object bean) {
@@ -86,7 +89,9 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
 
     public PS wireService(
             final String workflowModuleId,
-            final String bpmnProcessId) {
+            final String bpmnProcessId,
+            final Collection<String> messageBasedStartEventsMessageNames,
+            final Collection<String> signalBasedStartEventsSignalNames) {
 
         final var workflowAggregateAndServiceClass =
                 determineAndValidateWorkflowAggregateAndServiceClass(bpmnProcessId);
@@ -102,7 +107,9 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
                 workflowModuleId,
                 workflowAggregateClass,
                 bpmnProcessId,
-                isPrimaryProcessWiring);
+                isPrimaryProcessWiring,
+                messageBasedStartEventsMessageNames,
+                signalBasedStartEventsSignalNames);
         
     }
 

@@ -1,14 +1,34 @@
 package io.vanillabp.springboot.adapter;
 
 import io.vanillabp.spi.process.ProcessService;
+import io.vanillabp.springboot.adapter.VanillaBpProperties.WorkflowAndModuleAdapters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * A process service which is aware of multiple adapter-specific process services.
+ * <p>
+ * On starting a workflow the primary adapter is used. For operations based
+ * on existing workflows each adapter is tried to complete the respective action.
+ * As the particular workflow was started before using one of the configured
+ * adapters, the action should complete successfully. Message correlation
+ * is done for each adapter.
+ * <p>
+ * @see VanillaBpProperties#getDefaultAdapter()
+ * @see VanillaBpProperties#getWorkflows()
+ * @see WorkflowAndModuleAdapters#getAdapter()
+ */
 public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AdapterAwareProcessService.class);
 
     private final VanillaBpProperties properties;
 
@@ -20,6 +40,11 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
     
     private Set<String> bpmnProcessIds = new HashSet<>();
 
+    private Collection<String> messageBasedStartEventsMessageNames;
+    
+    @SuppressWarnings("unused")
+    private Collection<String> signalBasedStartEventsSignalNames;
+    
     public AdapterAwareProcessService(
             final VanillaBpProperties properties,
             final Map<String, ProcessServiceImplementation<DE>> processServicesByAdapter) {
@@ -53,7 +78,9 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String adapterId,
             final String workflowModuleId,
             final String bpmnProcessId,
-            final boolean isPrimary) {
+            final boolean isPrimary,
+            final Collection<String> messageBasedStartEventsMessageNames,
+            final Collection<String> signalBasedStartEventsSignalNames) {
         
         if ((this.workflowModuleId != null)
                 && (workflowModuleId != null)
@@ -107,35 +134,29 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         }
         if (isPrimary) {
             this.primaryBpmnProcessId = bpmnProcessId;
+            this.messageBasedStartEventsMessageNames = messageBasedStartEventsMessageNames;
+            this.signalBasedStartEventsSignalNames = signalBasedStartEventsSignalNames;
         }
         this.bpmnProcessIds.add(bpmnProcessId);
         
     }
 
-    private String determineAdapterId() {
+    private List<String> determineAdapterIds() {
         
         return properties
-                .getAdapters()
-                .entrySet()
+                .getWorkflows()
                 .stream()
-                .flatMap(entry -> entry
-                        .getValue()
-                        .getAdapterFor()
-                        .stream()
-                        .map(item -> Map.entry(entry.getKey(), item)))
-                .filter(entry -> entry
-                        .getValue()
-                        .matchesAny(workflowModuleId, bpmnProcessIds))
+                .filter(workflow -> workflow.matchesAny(workflowModuleId, bpmnProcessIds))
                 .findFirst()
-                .map(Map.Entry::getKey)
+                .map(WorkflowAndModuleAdapters::getAdapter)
+                .filter(adapter -> !adapter.isEmpty())
                 .orElse(properties.getDefaultAdapter());
-        
+
     }
     
-    private String determineAdapterId(
-            final DE workflowAggregate) {
+    private String determinePrimaryAdapterId() {
         
-        return determineAdapterId();
+        return determineAdapterIds().get(0);
         
     }
     
@@ -144,7 +165,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate) throws Exception {
         
         return processServicesByAdapter
-                .get(determineAdapterId())
+                .get(determinePrimaryAdapterId())
                 .startWorkflow(workflowAggregate);
 
     }
@@ -154,9 +175,24 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate,
             final String messageName) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .correlateMessage(workflowAggregate, messageName);
+        if (messageBasedStartEventsMessageNames.contains(messageName)) {
+
+            return processServicesByAdapter
+                    .get(determinePrimaryAdapterId())
+                    .correlateMessage(workflowAggregate, messageName);
+            
+        } else {
+        
+            return determineAdapterIds()
+                    .stream()
+                    .map(processServicesByAdapter::get)
+                    .map(adapter -> adapter.correlateMessage(workflowAggregate, messageName))
+                    .collect(Collectors.toList())
+                    .stream()
+                    .findFirst()
+                    .get();
+            
+        }
         
     }
 
@@ -166,9 +202,22 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String messageName,
             final String correlationId) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .correlateMessage(workflowAggregate, messageName, correlationId);
+        if (messageBasedStartEventsMessageNames.contains(messageName)) {
+
+            return processServicesByAdapter
+                    .get(determinePrimaryAdapterId())
+                    .correlateMessage(workflowAggregate, messageName, correlationId);
+            
+        } else {
+        
+            return determineAdapterIds()
+                    .stream()
+                    .map(processServicesByAdapter::get)
+                    .map(adapter -> adapter.correlateMessage(workflowAggregate, messageName, correlationId))
+                    .findFirst()
+                    .get();
+            
+        }
         
     }
 
@@ -177,9 +226,22 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate,
             final Object message) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .correlateMessage(workflowAggregate, message);
+        if (messageBasedStartEventsMessageNames.contains(message.getClass().getSimpleName())) {
+
+            return processServicesByAdapter
+                    .get(determinePrimaryAdapterId())
+                    .correlateMessage(workflowAggregate, message);
+            
+        } else {
+        
+            return determineAdapterIds()
+                    .stream()
+                    .map(processServicesByAdapter::get)
+                    .map(adapter -> adapter.correlateMessage(workflowAggregate, message))
+                    .findFirst()
+                    .get();
+            
+        }
         
     }
 
@@ -189,9 +251,22 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final Object message,
             final String correlationId) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .correlateMessage(workflowAggregate, message, correlationId);
+        if (messageBasedStartEventsMessageNames.contains(message.getClass().getSimpleName())) {
+
+            return processServicesByAdapter
+                    .get(determinePrimaryAdapterId())
+                    .correlateMessage(workflowAggregate, message, correlationId);
+            
+        } else {
+        
+            return determineAdapterIds()
+                    .stream()
+                    .map(processServicesByAdapter::get)
+                    .map(adapter -> adapter.correlateMessage(workflowAggregate, message, correlationId))
+                    .findFirst()
+                    .get();
+            
+        }
         
     }
 
@@ -200,9 +275,24 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate,
             final String taskId) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .completeUserTask(workflowAggregate, taskId);
+        final var exceptions = new LinkedList<Exception>();
+        return determineAdapterIds()
+                .stream()
+                .map(processServicesByAdapter::get)
+                .map(adapter -> {
+                    try {
+                        return adapter.completeUserTask(workflowAggregate, taskId);
+                    } catch (Exception e) {
+                        exceptions.add(e);
+                        return null;
+                    }
+                })
+                .filter(result -> result != null)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.error("Could not complete user-task using adapter '{}'!", e));
+                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                });
         
     }
 
@@ -212,9 +302,24 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String taskId,
             final String bpmnErrorCode) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .cancelUserTask(workflowAggregate, taskId, bpmnErrorCode);
+        final var exceptions = new LinkedList<Exception>();
+        return determineAdapterIds()
+                .stream()
+                .map(processServicesByAdapter::get)
+                .map(adapter -> {
+                    try {
+                        return adapter.cancelUserTask(workflowAggregate, taskId, bpmnErrorCode);
+                    } catch (Exception e) {
+                        exceptions.add(e);
+                        return null;
+                    }
+                })
+                .filter(result -> result != null)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.error("Could not cancel user-task using adapter '{}'!", e));
+                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                });
         
     }
 
@@ -223,9 +328,24 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate,
             final String taskId) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .completeTask(workflowAggregate, taskId);
+        final var exceptions = new LinkedList<Exception>();
+        return determineAdapterIds()
+                .stream()
+                .map(processServicesByAdapter::get)
+                .map(adapter -> {
+                    try {
+                        return adapter.completeTask(workflowAggregate, taskId);
+                    } catch (Exception e) {
+                        exceptions.add(e);
+                        return null;
+                    }
+                })
+                .filter(result -> result != null)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.error("Could not complete task using adapter '{}'!", e));
+                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                });
         
     }
 
@@ -235,9 +355,24 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String taskId,
             final String bpmnErrorCode) {
         
-        return processServicesByAdapter
-                .get(determineAdapterId(workflowAggregate))
-                .cancelTask(workflowAggregate, taskId, bpmnErrorCode);
+        final var exceptions = new LinkedList<Exception>();
+        return determineAdapterIds()
+                .stream()
+                .map(processServicesByAdapter::get)
+                .map(adapter -> {
+                    try {
+                        return adapter.cancelTask(workflowAggregate, taskId, bpmnErrorCode);
+                    } catch (Exception e) {
+                        exceptions.add(e);
+                        return null;
+                    }
+                })
+                .filter(result -> result != null)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.error("Could not cancel task using adapter '{}'!", e));
+                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                });
         
     }
     

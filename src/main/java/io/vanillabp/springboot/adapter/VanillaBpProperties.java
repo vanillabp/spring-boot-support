@@ -2,21 +2,28 @@ package io.vanillabp.springboot.adapter;
 
 import io.vanillabp.springboot.utils.WorkflowAndModule;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.lang.NonNull;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @ConfigurationProperties(prefix = "vanillabp", ignoreUnknownFields = true)
 public class VanillaBpProperties {
 
-    @NonNull
-    private String defaultAdapter;
+    private List<String> defaultAdapter;
     
     private String resourcesPath;
     
-    private Map<String, AdapterConfiguration> adapters = new HashMap<>();
+    private List<WorkflowAndModuleAdapters> workflows = List.of();
+    
+    private Map<String, AdapterConfiguration> adapters = Map.of();
+    
+    public List<WorkflowAndModuleAdapters> getWorkflows() {
+        return workflows;
+    }
+    
+    public void setWorkflows(List<WorkflowAndModuleAdapters> workflows) {
+        this.workflows = workflows;
+    }
     
     public Map<String, AdapterConfiguration> getAdapters() {
         return adapters;
@@ -26,11 +33,11 @@ public class VanillaBpProperties {
         this.adapters = adapters;
     }
     
-    public String getDefaultAdapter() {
+    public List<String> getDefaultAdapter() {
         return defaultAdapter;
     }
     
-    public void setDefaultAdapter(String defaultAdapter) {
+    public void setDefaultAdapter(List<String> defaultAdapter) {
         this.defaultAdapter = defaultAdapter;
     }
     
@@ -44,17 +51,7 @@ public class VanillaBpProperties {
     
     public static class AdapterConfiguration {
         
-        private List<WorkflowAndModule> adapterFor = List.of();
-        
         private String resourcesPath;
-
-        public List<WorkflowAndModule> getAdapterFor() {
-            return adapterFor;
-        }
-
-        public void setAdapterFor(List<WorkflowAndModule> adapterFor) {
-            this.adapterFor = adapterFor;
-        }
         
         public String getResourcesPath() {
             return resourcesPath;
@@ -65,5 +62,19 @@ public class VanillaBpProperties {
         }
         
     }
-    
+
+    public static class WorkflowAndModuleAdapters extends WorkflowAndModule {
+        
+        private List<String> adapter = List.of();
+        
+        public List<String> getAdapter() {
+            return adapter;
+        }
+        
+        public void setAdapter(List<String> adapter) {
+            this.adapter = adapter;
+        }
+        
+    }
+
 }
