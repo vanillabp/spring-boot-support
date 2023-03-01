@@ -8,8 +8,6 @@ public class WorkflowAndModule {
     
     private String bpmnProcessId;
     
-    private boolean noMigration;
-    
     public String getBpmnProcessId() {
         return bpmnProcessId;
     }
@@ -24,14 +22,6 @@ public class WorkflowAndModule {
     
     public void setWorkflowModuleId(String workflowModuleId) {
         this.workflowModuleId = workflowModuleId;
-    }
-    
-    public boolean isNoMigration() {
-        return noMigration;
-    }
-    
-    public void setNoMigration(boolean noMigration) {
-        this.noMigration = noMigration;
     }
 
     public boolean matches(
