@@ -275,23 +275,26 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate,
             final String taskId) {
         
-        final var exceptions = new LinkedList<Exception>();
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
         return determineAdapterIds()
                 .stream()
-                .map(processServicesByAdapter::get)
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
                     try {
-                        return adapter.completeUserTask(workflowAggregate, taskId);
+                        return adapter.getValue().completeUserTask(workflowAggregate, taskId);
                     } catch (Exception e) {
-                        exceptions.add(e);
+                        exceptions.add(Map.entry(adapter.getKey(), e));
                         return null;
                     }
                 })
                 .filter(result -> result != null)
                 .findFirst()
                 .orElseThrow(() -> {
-                    exceptions.forEach(e -> logger.error("Could not complete user-task using adapter '{}'!", e));
-                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                    exceptions.forEach(e -> logger.debug(
+                            "Could not complete user-task using VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new RuntimeException("User task '" + taskId + "' not known by any VanillaBP adapter!");
                 });
         
     }
@@ -302,23 +305,26 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String taskId,
             final String bpmnErrorCode) {
         
-        final var exceptions = new LinkedList<Exception>();
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
         return determineAdapterIds()
                 .stream()
-                .map(processServicesByAdapter::get)
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
                     try {
-                        return adapter.cancelUserTask(workflowAggregate, taskId, bpmnErrorCode);
+                        return adapter.getValue().cancelUserTask(workflowAggregate, taskId, bpmnErrorCode);
                     } catch (Exception e) {
-                        exceptions.add(e);
+                        exceptions.add(Map.entry(adapter.getKey(), e));
                         return null;
                     }
                 })
                 .filter(result -> result != null)
                 .findFirst()
                 .orElseThrow(() -> {
-                    exceptions.forEach(e -> logger.error("Could not cancel user-task using adapter '{}'!", e));
-                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                    exceptions.forEach(e -> logger.debug(
+                            "Could not cancel user-task using VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new RuntimeException("User task '" + taskId + "' not known by any VanillaBP adapter!");
                 });
         
     }
@@ -328,23 +334,26 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate,
             final String taskId) {
         
-        final var exceptions = new LinkedList<Exception>();
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
         return determineAdapterIds()
                 .stream()
-                .map(processServicesByAdapter::get)
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
                     try {
-                        return adapter.completeTask(workflowAggregate, taskId);
+                        return adapter.getValue().completeTask(workflowAggregate, taskId);
                     } catch (Exception e) {
-                        exceptions.add(e);
+                        exceptions.add(Map.entry(adapter.getKey(), e));
                         return null;
                     }
                 })
                 .filter(result -> result != null)
                 .findFirst()
                 .orElseThrow(() -> {
-                    exceptions.forEach(e -> logger.error("Could not complete task using adapter '{}'!", e));
-                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                    exceptions.forEach(e -> logger.debug(
+                            "Could not complete task using VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new RuntimeException("Task '" + taskId + "' not known by any VanillaBP adapter!");
                 });
         
     }
@@ -355,23 +364,26 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String taskId,
             final String bpmnErrorCode) {
         
-        final var exceptions = new LinkedList<Exception>();
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
         return determineAdapterIds()
                 .stream()
-                .map(processServicesByAdapter::get)
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
                     try {
-                        return adapter.cancelTask(workflowAggregate, taskId, bpmnErrorCode);
+                        return adapter.getValue().cancelTask(workflowAggregate, taskId, bpmnErrorCode);
                     } catch (Exception e) {
-                        exceptions.add(e);
+                        exceptions.add(Map.entry(adapter.getKey(), e));
                         return null;
                     }
                 })
                 .filter(result -> result != null)
                 .findFirst()
                 .orElseThrow(() -> {
-                    exceptions.forEach(e -> logger.error("Could not cancel task using adapter '{}'!", e));
-                    return new RuntimeException("Unknown taskId '" + taskId + "'!");
+                    exceptions.forEach(e -> logger.debug(
+                            "Could not cancel task using VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new RuntimeException("Task '" + taskId + "' not known by any VanillaBP adapter!");
                 });
         
     }

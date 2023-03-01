@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @EnableConfigurationProperties(VanillaBpProperties.class)
 public class AdapterAwareProcessServiceConfiguration {
@@ -241,6 +242,29 @@ public class AdapterAwareProcessServiceConfiguration {
                             + "was set to an adapter not available in classpath! "
                             + "Check previous error logs for details.");
                 });
+        
+        final var configuredAdapters = Stream.concat(
+                properties
+                        .getDefaultAdapter()
+                        .stream(),
+                properties
+                        .getWorkflows()
+                        .stream()
+                        .flatMap(workflow -> workflow.getAdapter().stream()))
+                .distinct()
+                .collect(Collectors.toList());
+        final var nonConfigureAdapters = adapterConfigurations
+                .stream()
+                .map(AdapterConfigurationBase::getAdapterId)
+                .filter(adapterId -> configuredAdapters.stream().noneMatch(adapterId::equals))
+                .collect(Collectors.joining("', '"));
+        if (!nonConfigureAdapters.isBlank()) {
+            throw new RuntimeException(
+                    "Found VanillaBP adapters in classpath which are neither part of property "
+                    + "'vanillabp.default-adapter' nor of 'vanillabp.workflows.*.adapter': '"
+                    + nonConfigureAdapters
+                    + "'!");
+        }
         
     }
 
