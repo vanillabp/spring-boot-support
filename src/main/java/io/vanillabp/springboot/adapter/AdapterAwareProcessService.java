@@ -40,10 +40,10 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
     
     private Set<String> bpmnProcessIds = new HashSet<>();
 
-    private Collection<String> messageBasedStartEventsMessageNames;
+    private Set<String> messageBasedStartEventsMessageNames = new HashSet<>();
     
     @SuppressWarnings("unused")
-    private Collection<String> signalBasedStartEventsSignalNames;
+    private Set<String> signalBasedStartEventsSignalNames = new HashSet<>();
     
     public AdapterAwareProcessService(
             final VanillaBpProperties properties,
@@ -134,8 +134,12 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         }
         if (isPrimary) {
             this.primaryBpmnProcessId = bpmnProcessId;
-            this.messageBasedStartEventsMessageNames = messageBasedStartEventsMessageNames;
-            this.signalBasedStartEventsSignalNames = signalBasedStartEventsSignalNames;
+            if (messageBasedStartEventsMessageNames != null) {
+                this.messageBasedStartEventsMessageNames.addAll(messageBasedStartEventsMessageNames);
+            }
+            if (signalBasedStartEventsSignalNames != null) {
+                this.signalBasedStartEventsSignalNames.addAll(signalBasedStartEventsSignalNames);
+            }
         }
         this.bpmnProcessIds.add(bpmnProcessId);
         
