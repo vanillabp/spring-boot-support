@@ -21,7 +21,7 @@ public interface SpringDataUtil {
      * Determine the repository for the given type.
      * 
      * @param <O> The entity's expected type.
-     * @param object The given entity's type.
+     * @param type The given entity's type.
      * @return The repository
      */
     <O> CrudRepository<O, String> getRepository(Class<O> type);
