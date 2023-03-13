@@ -157,7 +157,7 @@ payment:
 
 ### Special profiles
 
-There are two profiles "local" and "simulation" which a treaded in a special way:
+There are two profiles "local" and "simulation" which are treaded in a special way:
 
 *local* is the profile used for local development in your IDE. If no profile is defined at all then this profile is selected as a default. Additionally, the worker ID is set to `local` if non is set.
 
@@ -177,7 +177,7 @@ Possible migration scenarios are:
 1. **Use two adapters in one runtime:** This means that your application targets both BPM systems in parallel. New workflows are started using the new BPM system, old workflows will be completed using the old BPM system. No migration of data is needed. Steps of the procedure are:
      1. Start with Spring Boot workflow application runtimes having one adapter.
      1. Redeploy all Spring Boot workflow application runtimes having the new adapter as a fallback. **
-     1. Redeploy all Spring Boot workflow application runtimes having the new adapter is a primary adapter and the former adapter as a fallback.
+     1. Redeploy all Spring Boot workflow application runtimes having the new adapter as a primary adapter and the former adapter as a fallback.
      1. All new workfows are started using the new adapter, so wait until all workflow instances of the old BPM system are completed.
      1. Redeploy all Spring Boot workflow application runtimes using the new adapter only.
 1. **Use two adapters in two runtimes:** This means that your application targets only one BPM system, but it runs twice in parallel: The old version of the application targeting the old BPM system and the new version targeting the new BPM system. No migration of data is needed. Steps of the procedure are: 
