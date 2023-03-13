@@ -19,12 +19,14 @@ import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessServiceImplementation<?>> {
 
@@ -49,7 +51,12 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
     }
 
     protected abstract <DE> PS connectToBpms(
-            String workflowModuleId, Class<DE> workflowAggregateClass, String bpmnProcessId);
+            String workflowModuleId,
+            Class<DE> workflowAggregateClass,
+            String bpmnProcessId,
+            boolean isPrimary,
+            Collection<String> messageBasedStartEventsMessageNames,
+            Collection<String> signalBasedStartEventsSignalNames);
 
     protected Entry<Class<?>, Class<?>> determineWorkflowAggregateClass(
             final Object bean) {
@@ -82,15 +89,31 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
 
     public PS wireService(
             final String workflowModuleId,
-            final String bpmnProcessId) {
+            final String bpmnProcessId,
+            final Collection<String> messageBasedStartEventsMessageNames,
+            final Collection<String> signalBasedStartEventsSignalNames) {
 
-        final var workflowAggregateClass = determineAndValidateWorkflowAggregateClass(bpmnProcessId);
-
-        return connectToBpms(workflowModuleId, workflowAggregateClass, bpmnProcessId);
+        final var workflowAggregateAndServiceClass =
+                determineAndValidateWorkflowAggregateAndServiceClass(bpmnProcessId);
+        final var workflowAggregateClass = workflowAggregateAndServiceClass.getKey();
+        final var workflowServiceClass = workflowAggregateAndServiceClass.getValue();
+        
+        final var isPrimaryProcessWiring = isPrimaryProcessWiring(
+                workflowModuleId,
+                bpmnProcessId,
+                workflowServiceClass);
+        
+        return connectToBpms(
+                workflowModuleId,
+                workflowAggregateClass,
+                bpmnProcessId,
+                isPrimaryProcessWiring,
+                messageBasedStartEventsMessageNames,
+                signalBasedStartEventsSignalNames);
         
     }
 
-    private Class<?> determineAndValidateWorkflowAggregateClass(
+    private Map.Entry<Class<?>, Class<?>> determineAndValidateWorkflowAggregateAndServiceClass(
             final String bpmnProcessId) {
 
         final var tested = new StringBuilder();
@@ -143,13 +166,20 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
             throw new RuntimeException(
                     "Multiple beans annotated with @WorkflowService(bpmnProcessId=\""
                     + bpmnProcessId
-                    + "\") found having different generic parameters, but should all the same: "
+                    + "\") found having different generic parameters, but should all be the same: "
                     + found);
             
         }
+        
+        final var matchingService = matchingServices
+                .entrySet()
+                .iterator()
+                .next();
 
-        return matchingServices.keySet().iterator().next();
-
+        return Map.entry(
+                matchingService.getKey(),
+                matchingService.getValue().get(0));
+        
     }
 
     public void wireTask(
@@ -212,13 +242,48 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
 
         return Arrays
                 .stream(workflowServiceAnnotations)
-                .flatMap(workflowServiceAnnotation -> Arrays.stream(workflowServiceAnnotation.bpmnProcess()))
+                .flatMap(workflowServiceAnnotation ->
+                        Stream.concat(
+                                Stream.of(workflowServiceAnnotation.bpmnProcess()),
+                                Arrays.stream(workflowServiceAnnotation.secondaryBpmnProcesses())))
                 .anyMatch(annotation -> annotation.bpmnProcessId().equals(bpmnProcessId)
                         || (annotation.bpmnProcessId().equals(BpmnProcess.USE_CLASS_NAME)
                                 && bpmnProcessId.equals(beanClass.getSimpleName())));
 
     }
 
+    private boolean isPrimaryProcessWiring(
+            final String workflowModuleId,
+            final String bpmnProcessId,
+            final Class<?> workflowServiceClass) {
+
+        final var primaryBpmnProcessIds = Arrays
+                .stream(workflowServiceClass.getAnnotationsByType(WorkflowService.class))
+                .map(WorkflowService::bpmnProcess)
+                .map(bpmnProcess -> bpmnProcess.bpmnProcessId().equals(BpmnProcess.USE_CLASS_NAME)
+                        ? workflowServiceClass.getSimpleName()
+                        : bpmnProcess.bpmnProcessId())
+                .collect(Collectors.toList());
+        if (primaryBpmnProcessIds.size() > 1) {
+            final var bpmnProcessIds = primaryBpmnProcessIds
+                    .stream()
+                    .collect(Collectors.joining("', '"));
+            throw new RuntimeException("In class '"
+                    + workflowServiceClass.getName()
+                    + (StringUtils.hasText(workflowModuleId)
+                        ? ""
+                        : "' of workflow module '")
+                    + "' there is more than one @BpmnProcess annotation having "
+                    + "set attribute 'primary' as true: '"
+                    + bpmnProcessIds
+                    + "'. Please have a look into "
+                    + "the attribute's JavaDoc to learn about its meaning.");
+        }
+        
+        return primaryBpmnProcessIds.get(0).equals(bpmnProcessId);
+        
+    }
+    
     protected abstract void connectToBpms(
             PS processService, Object bean, T connectable, Method method, List<MethodParameter> parameters);
 

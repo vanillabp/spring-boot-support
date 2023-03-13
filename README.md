@@ -23,6 +23,7 @@ public class TaxiApplication {
 1. [Worker ID](#worker-id)
 1. [Workflow modules](#workflow-modules)
 1. [Spring boot profiles](#spring-boot-profiles)
+1. [Migrating from one BPM system to another](#migrating-from-one-bpm-system-to-another)
 1. [Noteworthy & Contributors](#noteworthy--contributors)
 1. [License](#license)
 
@@ -156,11 +157,97 @@ payment:
 
 ### Special profiles
 
-There are two profiles "local" and "simulation" which a treaded in a special way:
+There are two profiles "local" and "simulation" which are treaded in a special way:
 
 *local* is the profile used for local development in your IDE. If no profile is defined at all then this profile is selected as a default. Additionally, the worker ID is set to `local` if non is set.
 
 *simulation* is the feature-switch profile to use simulated external systems instead of accessing real APIs. It is activated per default next to the *local* profile, if no profile is defined. A "simulation" is an additional Spring Boot container you can build which implements the interfaces of all external systems (e.g. REST-APIs, embedded LDAP instead of ActiveDirectory, embedded Kafka, etc.) to be used for local development as well as for running integration tests as part of the build.
+
+### Migrating from one BPM system to another
+
+In some situations one might want to migrate from one BPM system to another. This is supported by VanillaBP since adapters are meant to live in Java-classpath next to each other.
+
+Possible migration scenarios are:
+
+1. **Use one adapter in one runtime:** This means that your application targets only one BPM system at the time. Migration of data is needed. Steps of the procedure are:
+     1. All Spring Boot workflow application runtimes have to be stopped.
+     1. BPM runtime data needs to be moved to the other BPM system.
+     1. BPM-specific data in workflow aggregates needs to be updated (e.g. user-task ID).
+     1. Redeploy Spring Boot workflow application runtimes using the new adapter.
+1. **Use two adapters in one runtime:** This means that your application targets both BPM systems in parallel. New workflows are started using the new BPM system, old workflows will be completed using the old BPM system. No migration of data is needed. Steps of the procedure are:
+     1. Start with Spring Boot workflow application runtimes having one adapter.
+     1. Redeploy all Spring Boot workflow application runtimes having the new adapter as a fallback. **
+     1. Redeploy all Spring Boot workflow application runtimes having the new adapter as a primary adapter and the former adapter as a fallback.
+     1. All new workfows are started using the new adapter, so wait until all workflow instances of the old BPM system are completed.
+     1. Redeploy all Spring Boot workflow application runtimes using the new adapter only.
+1. **Use two adapters in two runtimes:** This means that your application targets only one BPM system, but it runs twice in parallel: The old version of the application targeting the old BPM system and the new version targeting the new BPM system. No migration of data is needed. Steps of the procedure are: 
+     1. Build a new version of the Spring Boot workflow application using the new adapter which also introduces a new version of all "incoming" interfaces.
+     1. Deploy new workflow application in parallel to the old one.
+     1. Set routing of external events/requests based on the application's version.
+     1. Wait until all workflows of the old BPM system are completed.
+     1. Stop the old version of the workflow application.
+
+All scenarios are possible using VanillaBP. For the first and the third scenario you have to build support on your own (data migration; routing external events), so they are possible options we do not recommend.
+
+The second scenario is fully supported by VanillaBP. It is a minimally invasive migration. During the time that two adapters are configured, all actions driven by each configured BPM system are mapped directly with no performance degradation (e.g. processing a ServiceTask). External actions (e.g. completing a user-task) have to be processed by each adapter until one succeeds. Although this applies to typically rare situations only (completing a user-task and completing asynchronous tasks) it is a performance degradation, so we recommended to remove the old adapter once migration is completed. This scenario is a good option for all situations in which the overall lifetime of the workflows are limited to an acceptable period running both BPM systems in parallel.
+
+(** This step is necessary in the case you are doing rolling cluster-deployments. To avoid wrong behavior during deployment in the case old runtimes have to correlate events or complete user-tasks which belong to workflows targeting the new BPM system started by runtimes already updated.)
+
+#### Setting the primary and secondary adapter in periods of migration
+
+In periods of no migration there is only one adapter in classpath and therefore no configuration is required. Once you prepare for migration by adding another adapter, some  Spring Boot properties have to be set. The settings are validated at startup and violations will be reported and abort launch.
+
+**Setting adapters for a specific workflow:**
+
+```yaml
+vanillabp:
+  workflows:
+    - bpmn-process-id: DemoWorkflow
+      adapter: camunda8, camunda7
+```
+
+*Hint:* The adapters are used in the order of appearance. Additionally, the first adapter is used to start new workflows.
+
+**Setting adapters for a specific workflow which is part of a workflow-module:**
+
+```yaml
+vanillabp:
+  workflows:
+    - bpmn-process-id: DemoWorkflow
+      workflow-module-id: Demo
+      adapter: camunda8, camunda7
+```
+
+**Setting adapters for a all not explicitly specified workflows:**
+
+```yaml
+vanillabp:
+  default-adapter: camunda8, camunda7
+  workflows:
+    ...
+```
+
+**Avoid migrations by specifying one single adapter:**
+
+Sometimes it is fine to not migrate a workflow (e.g. it will be retired soon). In this situation setting only one adapter will do the job:
+
+```yaml
+vanillabp:
+  default-adapter: camunda8, camunda7
+  workflows:
+    - bpmn-process-id: DemoWorkflow
+      adapter: camunda7
+```
+
+Using this technique it is also possible to limit migration to specific workflows only:
+
+```yaml
+vanillabp:
+  default-adapter: camunda7
+  workflows:
+    - bpmn-process-id: DemoWorkflow
+      adapter: camunda8, camunda7
+```
 
 ## Noteworthy & Contributors
 
