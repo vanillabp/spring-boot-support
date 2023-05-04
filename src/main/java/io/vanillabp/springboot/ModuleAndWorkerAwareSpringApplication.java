@@ -66,7 +66,7 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
             
             // as part of the blueprint building simulation-services
             // to simulate bounded systems for local development or integration
-            // testing is recommended. Therefore the profiles specific to the
+            // testing is recommended. Therefore, the profiles specific to the
             // simulation-environment are activated by default for local development.
             addSimulationProfiles(environment);
 

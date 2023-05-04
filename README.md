@@ -29,7 +29,7 @@ public class TaxiApplication {
 
 ## Worker ID
 
-In a decentralized environment workload is fetched rather then pushed to deal with back-pressure (e.g. Camunda 7's external tasks or Camunda 8's workers). In a load-balanced cluster environment, to identify each particular node fetching jobs from an external service in a unique way, the client has to pass a worker ID to that service. This worker ID is typically fetched from the environment like the host's IP address or a Kubernetes pod's name.
+In a decentralized environment workload is fetched rather than pushed to deal with back-pressure (e.g. Camunda 7's external tasks or Camunda 8's workers). In a load-balanced cluster environment, to identify each particular node fetching jobs from an external service in a unique way, the client has to pass a worker ID to that service. This worker ID is typically fetched from the environment like the host's IP address or a Kubernetes pod's name.
 
 To read this ID from the environment and pass it to the client bean is a feature of the Spring application class `ModuleAndWorkerAwareSpringApplication`. First the system environment `WORKER_ID` is read and if empty then the Java system property `WORKER_ID` is used.
 
@@ -39,7 +39,7 @@ So, one can start the Java process like this:
 java -DWORKER_ID=$(hostname -i) -jar taxi-application.jar
 ```
 
-Or, one can map a Kubernetes pod's name in the Kubernetes deployment.yaml file:
+Or, one can map a Kubernetes pod's name in the Kubernetes `deployment.yaml` file:
 
 ```yaml
 spec:
@@ -63,7 +63,7 @@ Finally, it can be used in a Spring bean by injection:
 private String workerId;
 ```
 
-Currently this value is used by BPMS adapters.
+Currently, this value is used by BPMS adapters.
 
 ## Workflow modules
 
@@ -73,9 +73,9 @@ To encapsulate a workflow module in its runtime environment (e.g. Spring boot co
 
 ### Configuration
 
-In a Spring boot environment one can use [externalized properties](https://www.baeldung.com/spring-yaml) to store configuration details. Typically a YAML formatted file stored in classpath `config/application.yaml` is used. In a workflow module the same mechanism is used, but the name of the YAML file is customized (e.g. `ride.yaml` for the taxi ride example).
+In a Spring boot environment one can use [externalized properties](https://www.baeldung.com/spring-yaml) to store configuration details. Typically, a YAML formatted file stored in classpath `config/application.yaml` is used. In a workflow module the same mechanism is used, but the name of the YAML file is customized (e.g. `ride.yaml` for the taxi ride example).
 
-To simplify configuration the file's name as well as the configuration's top section is the name of the workflow module. Therefore the name is typically formatted in kebap case. This name is called *workflow module ID* and is also used to separate the modules within the underlying BPMS.
+To simplify configuration the file's name as well as the configuration's top section is the name of the workflow module. Therefore, the name is typically formatted in kebap case. This name is called *workflow module ID* and is also used to separate the modules within the underlying BPMS.
 
 `config/ride.yaml`:
 
@@ -103,7 +103,7 @@ public class RideProperties
 
 ## Spring boot profiles
 
-Typically profiles are used to set environment specific properties (e.g. stages):
+Typically, profiles are used to set environment specific properties (e.g. stages):
 
 1. config/ride.yaml (stores the default values)
 1. config/ride-local.yaml (configuration specific to the local development environment)
@@ -115,15 +115,15 @@ or to establish feature switches:
 1. config/ride-camunda7.yaml (configuration used by Camunda 7 adapter)
 1. config/ride-camunda8.yaml (configuration used by Camunda 8 adapter)
 
-To choose a specific profile the system property `spring.profiles.active` has to be set (e.g `-Dspring.profiles.active=camunda7,test` enables Camunda 7 adapter in the test environment).
+To choose a specific profile the system property `spring.profiles.active` has to be set (e.g. `-Dspring.profiles.active=camunda7,test` enables Camunda 7 adapter in the test environment).
 
 ### Hierarchical profiles
 
 If you provide several stage environments then some of the configuration properties might be the same. You can put them into the main YAML file (e.g. `config/ride.yaml`).
 
-Imagine you want to have more then one test environment because you need to test a bugfix release in parallel to the test team which is testing the next major release of your software. In this situation you might have multiple, enumerated environments like `test-env1` and `test-env2`. Typically, most of the configuration is the same for both test environments but you have to copy them into both YAML files `config/ride-test-env1.yaml` and `config/ride-test-env2.yaml` since they cannot be put into the major YAML file which must not contain any environment specific configuration.
+Imagine you want to have more than one test environment because you need to test a bugfix release in parallel to the test team which is testing the next major release of your software. In this situation you might have multiple, enumerated environments like `test-env1` and `test-env2`. Typically, most of the configuration is the same for both test environments but you have to copy them into both YAML files `config/ride-test-env1.yaml` and `config/ride-test-env2.yaml` since they cannot be put into the major YAML file which must not contain any environment specific configuration.
 
-To overcome this, Spring boot's default mechanism of profile determination is extended to automatically add base profiles according to the kebap case: `-Dspring.profiles.active=test-env1` will be interpreted as `-Dspring.profiles.active=test,test-env1` and therefore the file `config/ride-test.yaml` and `config/ride-test-env1.yaml` are read next to `config/ride.yaml`. One starting the application you will see a log-line showing the actual profiles used e.g.
+To overcome this, Spring boot's default mechanism of profile determination is extended to automatically add base profiles according to the kebab case: `-Dspring.profiles.active=test-env1` will be interpreted as `-Dspring.profiles.active=test,test-env1` and therefore the file `config/ride-test.yaml` and `config/ride-test-env1.yaml` are read next to `config/ride.yaml`. One starting the application you will see a log-line showing the actual profiles used e.g.
 
 ```
 INFO ..... The following profiles are active: camunda7,test,test-env1
@@ -157,7 +157,7 @@ payment:
 
 ### Special profiles
 
-There are two profiles "local" and "simulation" which are treaded in a special way:
+There are two profiles "local" and "simulation" which are treated in a special way:
 
 *local* is the profile used for local development in your IDE. If no profile is defined at all then this profile is selected as a default. Additionally, the worker ID is set to `local` if non is set.
 
@@ -178,7 +178,7 @@ Possible migration scenarios are:
      1. Start with Spring Boot workflow application runtimes having one adapter.
      1. Redeploy all Spring Boot workflow application runtimes having the new adapter as a fallback. **
      1. Redeploy all Spring Boot workflow application runtimes having the new adapter as a primary adapter and the former adapter as a fallback.
-     1. All new workfows are started using the new adapter, so wait until all workflow instances of the old BPM system are completed.
+     1. All new workflows are started using the new adapter, so wait until all workflow instances of the old BPM system are completed.
      1. Redeploy all Spring Boot workflow application runtimes using the new adapter only.
 1. **Use two adapters in two runtimes:** This means that your application targets only one BPM system, but it runs twice in parallel: The old version of the application targeting the old BPM system and the new version targeting the new BPM system. No migration of data is needed. Steps of the procedure are: 
      1. Build a new version of the Spring Boot workflow application using the new adapter which also introduces a new version of all "incoming" interfaces.
