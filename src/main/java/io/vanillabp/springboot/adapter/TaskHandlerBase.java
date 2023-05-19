@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 
 public abstract class TaskHandlerBase {
 
-    protected final CrudRepository<Object, String> workflowAggregateRepository;
+    protected final CrudRepository<Object, Object> workflowAggregateRepository;
 
     protected final List<MethodParameter> parameters;
 
@@ -34,7 +34,7 @@ public abstract class TaskHandlerBase {
     protected abstract Logger getLogger();
 
     public TaskHandlerBase(
-            final CrudRepository<Object, String> workflowAggregateRepository,
+            final CrudRepository<Object, Object> workflowAggregateRepository,
             final Object bean,
             final Method method,
             final List<MethodParameter> parameters) {
@@ -48,7 +48,7 @@ public abstract class TaskHandlerBase {
     }
     
     protected Object execute(
-            final String workflowAggregateId,
+            final Object workflowAggregateId,
             final Function<String, Object> multiInstanceSupplier,
             final Function<String, Object> taskParameterSupplier,
             final Supplier<String> userTaskIdSupplier,
@@ -296,7 +296,7 @@ public abstract class TaskHandlerBase {
             final int index,
             final MethodParameter param,
             final Object[] workflowAggregate,
-            final String workflowAggregateId) {
+            final Object workflowAggregateId) {
 
         if (!(param instanceof WorkflowAggregateMethodParameter)) {
             return true;

@@ -15,7 +15,7 @@ public interface SpringDataUtil {
      * @param entity The entity
      * @return The repository
      */
-    <O> CrudRepository<? super O, String> getRepository(O entity);
+    <O> CrudRepository<? super O, Object> getRepository(O entity);
     
     /**
      * Determine the repository for the given type.
@@ -24,7 +24,7 @@ public interface SpringDataUtil {
      * @param type The given entity's type.
      * @return The repository
      */
-    <O> CrudRepository<O, String> getRepository(Class<O> type);
+    <O> CrudRepository<O, Object> getRepository(Class<O> type);
 
     /**
      * Determine the entity's object identifier.
@@ -33,7 +33,15 @@ public interface SpringDataUtil {
      * @return The id
      * @see Id
      */
-    String getId(Object entity);
+    <I> I getId(Object entity);
+    
+    /**
+     * Determine the entity's object identifier's type.
+     * 
+     * @param The given entity's type.
+     * @return The entity's object identifier's type.
+     */
+    Class<?> getIdType(Class<?> type);
     
     /**
      * Unproxy the entity. This forces to load data if the proxy is not yet initialized. 

@@ -15,7 +15,8 @@ public abstract class AdapterConfigurationBase<P extends ProcessServiceImplement
     public abstract <DE> P newProcessServiceImplementation(
             final SpringDataUtil springDataUtil,
             final Class<DE> workflowAggregateClass,
-            final CrudRepository<DE, String> workflowAggregateRepository);
+            final Class<?> workflowAggregateIdClass,
+            final CrudRepository<DE, Object> workflowAggregateRepository);
 
     protected Collection<P> getConnectableServices() {
 

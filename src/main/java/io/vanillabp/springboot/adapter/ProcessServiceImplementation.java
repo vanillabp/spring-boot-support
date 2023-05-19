@@ -7,7 +7,7 @@ public interface ProcessServiceImplementation<DE> extends ProcessService<DE> {
 
     Class<DE> getWorkflowAggregateClass();
 
-    CrudRepository<DE, String> getWorkflowAggregateRepository();
+    CrudRepository<DE, ?> getWorkflowAggregateRepository();
     
     void setParent(AdapterAwareProcessService<DE> parent);
 
