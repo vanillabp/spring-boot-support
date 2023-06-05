@@ -6,9 +6,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.List;
 import java.util.Map;
 
-@ConfigurationProperties(prefix = "vanillabp", ignoreUnknownFields = true)
+@ConfigurationProperties(prefix = VanillaBpProperties.PREFIX, ignoreUnknownFields = true)
 public class VanillaBpProperties {
 
+    public static final String PREFIX = "vanillabp";
+    
     private List<String> defaultAdapter;
     
     private String resourcesPath;

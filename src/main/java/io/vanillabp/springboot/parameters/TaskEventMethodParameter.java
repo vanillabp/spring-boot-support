@@ -11,8 +11,11 @@ public class TaskEventMethodParameter extends MethodParameter {
     private final Set<TaskEvent.Event> events;
 
     public TaskEventMethodParameter(
+            final String parameter,
             final Event[] annotationParameter) {
 
+        super(parameter);
+        
         events = new HashSet<Event>();
         
         for (final var event : annotationParameter) {
