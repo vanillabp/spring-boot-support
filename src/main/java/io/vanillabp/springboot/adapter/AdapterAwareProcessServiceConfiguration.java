@@ -64,6 +64,8 @@ public class AdapterAwareProcessServiceConfiguration {
 
         final var workflowAggregateRepository = springDataUtil
                 .getRepository(workflowAggregateClass);
+        final var workflowAggregateIdClass = springDataUtil
+                .getIdType(workflowAggregateClass);
         
         validateConfiguration();
 
@@ -74,6 +76,7 @@ public class AdapterAwareProcessServiceConfiguration {
                         adapter.newProcessServiceImplementation(
                                 springDataUtil,
                                 workflowAggregateClass,
+                                workflowAggregateIdClass,
                                 workflowAggregateRepository)))
                 .collect(Collectors
                         .toMap(
