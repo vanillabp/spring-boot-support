@@ -4,6 +4,7 @@ import io.vanillabp.spi.process.ProcessService;
 import io.vanillabp.springboot.adapter.VanillaBpProperties.WorkflowAndModuleAdapters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.repository.CrudRepository;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -42,17 +43,48 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
 
     private Set<String> messageBasedStartEventsMessageNames = new HashSet<>();
     
+    private final Class<?> workflowAggregateIdClass;
+    
+    private final Class<?> workflowAggregateClass;
+    
     @SuppressWarnings("unused")
     private Set<String> signalBasedStartEventsSignalNames = new HashSet<>();
     
     public AdapterAwareProcessService(
             final VanillaBpProperties properties,
-            final Map<String, ProcessServiceImplementation<DE>> processServicesByAdapter) {
+            final Map<String, ProcessServiceImplementation<DE>> processServicesByAdapter,
+            final Class<?> workflowAggregateIdClass,
+            final Class<?> workflowAggregateClass) {
         
         this.properties = properties;
         this.processServicesByAdapter = processServicesByAdapter;
+        this.workflowAggregateIdClass = workflowAggregateIdClass;
+        this.workflowAggregateClass = workflowAggregateClass;
         
         processServicesByAdapter.forEach((adapterId, adapter) -> adapter.setParent(this));
+        
+    }
+    
+    public CrudRepository<DE, ?> getWorkflowAggregateRepository() {
+        
+        return processServicesByAdapter
+                .values()
+                .stream()
+                .findFirst()
+                .map(ProcessServiceImplementation::getWorkflowAggregateRepository)
+                .orElse(null);
+        
+    }
+    
+    public Class<?> getWorkflowAggregateIdClass() {
+        
+        return workflowAggregateIdClass;
+        
+    }
+    
+    public Class<?> getWorkflowAggregateClass() {
+        
+        return workflowAggregateClass;
         
     }
     

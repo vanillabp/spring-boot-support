@@ -32,6 +32,13 @@ public class AdapterAwareProcessServiceConfiguration {
     @Autowired
     private List<AdapterConfigurationBase<?>> adapterConfigurations;
     
+    @Bean
+    public Map<Class<?>, AdapterAwareProcessService<?>> vanillaBpConnectableServices() {
+        
+        return connectableServices;
+        
+    }
+    
     @SuppressWarnings("unchecked")
     @Bean
     @Primary
@@ -86,7 +93,9 @@ public class AdapterAwareProcessServiceConfiguration {
         @SuppressWarnings("rawtypes")
         final var result = new AdapterAwareProcessService(
                 properties,
-                processServicesByAdapter);
+                processServicesByAdapter,
+                workflowAggregateIdClass,
+                workflowAggregateClass);
 
         connectableServices.put(workflowAggregateClass, result);
 

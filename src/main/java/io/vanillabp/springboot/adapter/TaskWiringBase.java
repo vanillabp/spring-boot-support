@@ -2,41 +2,34 @@ package io.vanillabp.springboot.adapter;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationContext;
-import org.springframework.util.StringUtils;
 
-import io.vanillabp.spi.service.BpmnProcess;
 import io.vanillabp.spi.service.TaskEvent;
 import io.vanillabp.spi.service.TaskId;
-import io.vanillabp.spi.service.WorkflowService;
 import io.vanillabp.spi.service.WorkflowTask;
 import io.vanillabp.springboot.adapter.wiring.AbstractTaskWiring;
 import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MethodParameterFactory;
 
-public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessServiceImplementation<?>>
-        extends AbstractTaskWiring<T, WorkflowTask> {
+public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessServiceImplementation<?>, M extends MethodParameterFactory>
+        extends AbstractTaskWiring<T, WorkflowTask, M> {
 
     public TaskWiringBase(
             final ApplicationContext applicationContext,
-            final MethodParameterFactory methodParameterFactory) {
+            final M methodParameterFactory) {
         
         super(applicationContext, methodParameterFactory);
         
     }
 
+    @SuppressWarnings("unchecked")
     public TaskWiringBase(
             final ApplicationContext applicationContext) {
         
-        this(applicationContext, new MethodParameterFactory());
+        this(applicationContext, (M) new MethodParameterFactory());
         
     }
 
@@ -47,35 +40,6 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
             boolean isPrimary,
             Collection<String> messageBasedStartEventsMessageNames,
             Collection<String> signalBasedStartEventsSignalNames);
-
-    protected Entry<Class<?>, Class<?>> determineWorkflowAggregateClass(
-            final Object bean) {
-
-        final var serviceClass = determineBeanClass(bean);
-
-        final var aggregateClassNames = new LinkedList<String>();
-        
-        final var workflowAggregateClass = Arrays
-                .stream(serviceClass.getAnnotationsByType(WorkflowService.class))
-                .collect(Collectors.groupingBy(annotation -> annotation.workflowAggregateClass()))
-                .keySet()
-                .stream()
-                .peek(aggregateClass -> aggregateClassNames.add(aggregateClass.getName()))
-                .findFirst()
-                .get();
-        
-        return Map.entry(
-                serviceClass,
-                workflowAggregateClass);
-
-    }
-
-    private boolean isExtendingWorkflowServicePort(
-            final Entry<Class<?>, Class<?>> classes) {
-
-        return classes != null;
-
-    }
 
     public PS wireService(
             final String workflowModuleId,
@@ -100,107 +64,6 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
                 isPrimaryProcessWiring,
                 messageBasedStartEventsMessageNames,
                 signalBasedStartEventsSignalNames);
-        
-    }
-
-    private Map.Entry<Class<?>, Class<?>> determineAndValidateWorkflowAggregateAndServiceClass(
-            final String bpmnProcessId) {
-
-        final var tested = new StringBuilder();
-        
-        final var matchingServices = applicationContext
-                .getBeansWithAnnotation(WorkflowService.class)
-                .entrySet()
-                .stream()
-                .peek(bean -> {
-                    if (tested.length() > 0) {
-                        tested.append(", ");
-                    }
-                    tested.append(bean.getKey());
-                })
-                .filter(bean -> isAboutConnectableProcess(bpmnProcessId, bean.getValue()))
-                .map(bean -> determineWorkflowAggregateClass(bean.getValue()))
-                .filter(this::isExtendingWorkflowServicePort)
-                .collect(Collectors.groupingBy(
-                        Entry::getValue,
-                        Collectors.mapping(Entry::getKey, Collectors.toList())));
-
-        if (matchingServices.size() == 0) {
-            throw new RuntimeException(
-                    "No bean annotated with @WorkflowService(bpmnProcessId=\""
-                    + bpmnProcessId
-                    + "\"). Tested for: "
-                    + tested);
-        }
-        
-        if (matchingServices.size() != 1) {
-            
-            final var found = new StringBuilder();
-            matchingServices
-                    .entrySet()
-                    .stream()
-                    .peek(entry -> {
-                        if (found.length() > 0) {
-                            found.append("; ");
-                        }
-                        found.append(entry.getKey().getName());
-                        found.append(" by ");
-                    })
-                    .flatMap(entry -> entry.getValue().stream())
-                    .forEach(matchingService -> {
-                        if (found.length() > 0) {
-                            found.append(", ");
-                        }
-                        found.append(matchingService.getName());
-                    });
-            throw new RuntimeException(
-                    "Multiple beans annotated with @WorkflowService(bpmnProcessId=\""
-                    + bpmnProcessId
-                    + "\") found having different generic parameters, but should all be the same: "
-                    + found);
-            
-        }
-        
-        final var matchingService = matchingServices
-                .entrySet()
-                .iterator()
-                .next();
-
-        return Map.entry(
-                matchingService.getKey(),
-                matchingService.getValue().get(0));
-        
-    }
-
-    private boolean isPrimaryProcessWiring(
-            final String workflowModuleId,
-            final String bpmnProcessId,
-            final Class<?> workflowServiceClass) {
-
-        final var primaryBpmnProcessIds = Arrays
-                .stream(workflowServiceClass.getAnnotationsByType(WorkflowService.class))
-                .map(WorkflowService::bpmnProcess)
-                .map(bpmnProcess -> bpmnProcess.bpmnProcessId().equals(BpmnProcess.USE_CLASS_NAME)
-                        ? workflowServiceClass.getSimpleName()
-                        : bpmnProcess.bpmnProcessId())
-                .collect(Collectors.toList());
-        if (primaryBpmnProcessIds.size() > 1) {
-            final var bpmnProcessIds = primaryBpmnProcessIds
-                    .stream()
-                    .collect(Collectors.joining("', '"));
-            throw new RuntimeException("In class '"
-                    + workflowServiceClass.getName()
-                    + (StringUtils.hasText(workflowModuleId)
-                        ? ""
-                        : "' of workflow module '")
-                    + "' there is more than one @BpmnProcess annotation having "
-                    + "set attribute 'primary' as true: '"
-                    + bpmnProcessIds
-                    + "'. Please have a look into "
-                    + "the attribute's JavaDoc to learn about its meaning.");
-        }
-        
-        return primaryBpmnProcessIds.get(0).equals(bpmnProcessId);
         
     }
     
@@ -238,12 +101,21 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
             final PS processService,
             final Method method) {
         
+        if (!void.class.equals(method.getReturnType())) {
+            throw new RuntimeException(
+                    "Expected return-type 'void' for '"
+                    + method
+                    + "' but got: "
+                    + method.getReturnType());
+        }
+        
         return super.validateParameters(
                 method,
-                (m, parameter) -> validateWorkflowAggregateParameter(
+                (m, parameter, i) -> validateWorkflowAggregateParameter(
                         processService.getWorkflowAggregateClass(),
                         m,
-                        parameter),
+                        parameter,
+                        i),
                 super::validateTaskParam,
                 this::validateTaskId,
                 this::validateTaskEvent,
@@ -255,7 +127,8 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
     
     protected MethodParameter validateTaskId(
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
 
         final var userTaskIdAnnotation = parameter.getAnnotation(TaskId.class);
         if (userTaskIdAnnotation == null) {
@@ -263,13 +136,15 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
         }
 
         return methodParameterFactory.getTaskIdParameter(
+                index,
                 parameter.getName());
         
     }
     
     protected MethodParameter validateTaskEvent(
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
 
         final var userTaskEventAnnotation = parameter.getAnnotation(TaskEvent.class);
         if (userTaskEventAnnotation == null) {
@@ -278,6 +153,7 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
 
         return methodParameterFactory
                 .getUserTaskEventParameter(
+                        index,
                         parameter.getName(),
                         userTaskEventAnnotation.value());
 

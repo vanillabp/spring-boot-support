@@ -5,10 +5,11 @@ public abstract class NameBasedMethodParameter extends MethodParameter {
     protected final String name;
     
     public NameBasedMethodParameter(
+            final int index,
             final String parameter,
             final String name) {
         
-        super(parameter);
+        super(index, parameter);
         this.name = name;
         
     }

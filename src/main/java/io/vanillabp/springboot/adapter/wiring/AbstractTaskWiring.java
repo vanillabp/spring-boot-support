@@ -7,8 +7,10 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.aop.support.AopUtils;
@@ -26,16 +28,18 @@ import io.vanillabp.spi.service.WorkflowService;
 import io.vanillabp.springboot.adapter.Connectable;
 import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MethodParameterFactory;
+import io.vanillabp.springboot.utils.MutableStream;
+import io.vanillabp.springboot.utils.TriFunction;
 
-public abstract class AbstractTaskWiring<T extends Connectable, A extends Annotation> {
+public abstract class AbstractTaskWiring<T extends Connectable, A extends Annotation, M extends MethodParameterFactory> {
 
     protected final ApplicationContext applicationContext;
     
-    protected final MethodParameterFactory methodParameterFactory;
+    protected final M methodParameterFactory;
     
     public AbstractTaskWiring(
             final ApplicationContext applicationContext,
-            final MethodParameterFactory methodParameterFactory) {
+            final M methodParameterFactory) {
 
         this.applicationContext = applicationContext;
         this.methodParameterFactory = methodParameterFactory;
@@ -211,23 +215,15 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
     
     protected List<MethodParameter> validateParameters(
             final Method method,
-            @SuppressWarnings("unchecked") final BiFunction<Method, Parameter, MethodParameter>... map) {
+            @SuppressWarnings("unchecked") final TriFunction<Method, Parameter, Integer, MethodParameter>... map) {
 
         final var result = new LinkedList<MethodParameter>();
         final var unknown = new StringBuffer();
 
-        if (!void.class.equals(method.getReturnType())) {
-            throw new RuntimeException(
-                    "Expected return-type 'void' for '"
-                    + method
-                    + "' but got: "
-                    + method.getReturnType());
-        }
-
         final var index = new AtomicInteger(-1);
         
-        final var parameters = MutableParamterStream
-                .fromMethod(method);
+        final var parameters = MutableStream
+                .from(Arrays.stream(method.getParameters()));
         
         parameters
                 .apply(s -> s.peek(param -> index.incrementAndGet()));
@@ -237,7 +233,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                 .stream(map)
                 .forEach(mapper -> {
                     parameters.apply(s -> s.filter(parameter -> {
-                        final var mapped = mapper.apply(method, parameter);
+                        final var mapped = mapper.apply(method, parameter, index.get());
                         if (mapped == null) {
                             return true;
                         }
@@ -275,7 +271,12 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
     protected MethodParameter validateWorkflowAggregateParameter(
             final Class<?> workflowAggregateClass,
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
+        
+        if (workflowAggregateClass == null) {
+            return null;
+        }
         
         final var isWorkflowAggregate = workflowAggregateClass.isAssignableFrom(
                 parameter.getType());
@@ -285,13 +286,15 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
         return methodParameterFactory
                 .getWorkflowAggregateMethodParameter(
+                        index,
                         parameter.getName());
         
     }
 
     protected MethodParameter validateTaskParam(
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
         
         final var taskParamAnnotation = parameter.getAnnotation(TaskParam.class);
         if (taskParamAnnotation == null) {
@@ -300,6 +303,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
         return methodParameterFactory
                 .getTaskParameter(
+                        index,
                         parameter.getName(),
                         taskParamAnnotation.value());
         
@@ -307,7 +311,8 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
     protected MethodParameter validateMultiInstanceTotal(
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
         
         final var miTotalAnnotation = parameter.getAnnotation(MultiInstanceTotal.class);
         if (miTotalAnnotation == null) {
@@ -316,6 +321,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
         return methodParameterFactory
                 .getMultiInstanceTotalMethodParameter(
+                        index,
                         parameter.getName(),
                         miTotalAnnotation.value());
         
@@ -323,7 +329,8 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
     protected MethodParameter validateMultiInstanceIndex(
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
 
         final var miIndexAnnotation = parameter.getAnnotation(MultiInstanceIndex.class);
         if (miIndexAnnotation == null) {
@@ -332,6 +339,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
         return methodParameterFactory
                 .getMultiInstanceIndexMethodParameter(
+                        index,
                         parameter.getName(),
                         miIndexAnnotation.value());
         
@@ -339,7 +347,8 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
     
     protected MethodParameter validateMultiInstanceElement(
             final Method method,
-            final Parameter parameter) {
+            final Parameter parameter,
+            final int index) {
         
         final var miElementAnnotation = parameter.getAnnotation(MultiInstanceElement.class);
         if (miElementAnnotation == null) {
@@ -353,6 +362,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
             return methodParameterFactory
                     .getResolverBasedMultiInstanceMethodParameter(
+                            index,
                             parameter.getName(),
                             resolver);
 
@@ -360,6 +370,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
             return methodParameterFactory
                     .getMultiInstanceElementMethodParameter(
+                            index,
                             parameter.getName(),
                             miElementAnnotation.value());
             
@@ -374,6 +385,136 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                     + method);
             
         }
+        
+    }
+    
+    protected Map.Entry<Class<?>, Class<?>> determineAndValidateWorkflowAggregateAndServiceClass(
+            final String bpmnProcessId) {
+
+        final var tested = new StringBuilder();
+        
+        final var matchingServices = applicationContext
+                .getBeansWithAnnotation(WorkflowService.class)
+                .entrySet()
+                .stream()
+                .peek(bean -> {
+                    if (tested.length() > 0) {
+                        tested.append(", ");
+                    }
+                    tested.append(bean.getKey());
+                })
+                .filter(bean -> isAboutConnectableProcess(bpmnProcessId, bean.getValue()))
+                .map(bean -> determineWorkflowAggregateClass(bean.getValue()))
+                .filter(this::isExtendingWorkflowServicePort)
+                .collect(Collectors.groupingBy(
+                        Entry::getValue,
+                        Collectors.mapping(Entry::getKey, Collectors.toList())));
+
+        if (matchingServices.size() == 0) {
+            throw new RuntimeException(
+                    "No bean annotated with @WorkflowService(bpmnProcessId=\""
+                    + bpmnProcessId
+                    + "\"). Tested for: "
+                    + tested);
+        }
+        
+        if (matchingServices.size() != 1) {
+            
+            final var found = new StringBuilder();
+            matchingServices
+                    .entrySet()
+                    .stream()
+                    .peek(entry -> {
+                        if (found.length() > 0) {
+                            found.append("; ");
+                        }
+                        found.append(entry.getKey().getName());
+                        found.append(" by ");
+                    })
+                    .flatMap(entry -> entry.getValue().stream())
+                    .forEach(matchingService -> {
+                        if (found.length() > 0) {
+                            found.append(", ");
+                        }
+                        found.append(matchingService.getName());
+                    });
+            throw new RuntimeException(
+                    "Multiple beans annotated with @WorkflowService(bpmnProcessId=\""
+                    + bpmnProcessId
+                    + "\") found having different generic parameters, but should all be the same: "
+                    + found);
+            
+        }
+        
+        final var matchingService = matchingServices
+                .entrySet()
+                .iterator()
+                .next();
+
+        return Map.entry(
+                matchingService.getKey(),
+                matchingService.getValue().get(0));
+        
+    }
+    
+    protected Entry<Class<?>, Class<?>> determineWorkflowAggregateClass(
+            final Object bean) {
+
+        final var serviceClass = determineBeanClass(bean);
+
+        final var aggregateClassNames = new LinkedList<String>();
+        
+        final var workflowAggregateClass = Arrays
+                .stream(serviceClass.getAnnotationsByType(WorkflowService.class))
+                .collect(Collectors.groupingBy(annotation -> annotation.workflowAggregateClass()))
+                .keySet()
+                .stream()
+                .peek(aggregateClass -> aggregateClassNames.add(aggregateClass.getName()))
+                .findFirst()
+                .get();
+        
+        return Map.entry(
+                serviceClass,
+                workflowAggregateClass);
+
+    }
+    
+    private boolean isExtendingWorkflowServicePort(
+            final Entry<Class<?>, Class<?>> classes) {
+
+        return classes != null;
+
+    }
+
+    protected boolean isPrimaryProcessWiring(
+            final String workflowModuleId,
+            final String bpmnProcessId,
+            final Class<?> workflowServiceClass) {
+
+        final var primaryBpmnProcessIds = Arrays
+                .stream(workflowServiceClass.getAnnotationsByType(WorkflowService.class))
+                .map(WorkflowService::bpmnProcess)
+                .map(bpmnProcess -> bpmnProcess.bpmnProcessId().equals(BpmnProcess.USE_CLASS_NAME)
+                        ? workflowServiceClass.getSimpleName()
+                        : bpmnProcess.bpmnProcessId())
+                .collect(Collectors.toList());
+        if (primaryBpmnProcessIds.size() > 1) {
+            final var bpmnProcessIds = primaryBpmnProcessIds
+                    .stream()
+                    .collect(Collectors.joining("', '"));
+            throw new RuntimeException("In class '"
+                    + workflowServiceClass.getName()
+                    + (StringUtils.hasText(workflowModuleId)
+                        ? ""
+                        : "' of workflow module '")
+                    + "' there is more than one @BpmnProcess annotation having "
+                    + "set attribute 'primary' as true: '"
+                    + bpmnProcessIds
+                    + "'. Please have a look into "
+                    + "the attribute's JavaDoc to learn about its meaning.");
+        }
+        
+        return primaryBpmnProcessIds.get(0).equals(bpmnProcessId);
         
     }
     

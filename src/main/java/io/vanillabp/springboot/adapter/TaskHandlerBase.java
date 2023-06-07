@@ -1,7 +1,20 @@
 package io.vanillabp.springboot.adapter;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.springframework.data.repository.CrudRepository;
+
 import io.vanillabp.spi.service.MultiInstanceElementResolver;
 import io.vanillabp.spi.service.TaskEvent;
+import io.vanillabp.springboot.adapter.wiring.WorkflowAggregateCache;
 import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MultiInstanceElementMethodParameter;
 import io.vanillabp.springboot.parameters.MultiInstanceIndexMethodParameter;
@@ -11,15 +24,7 @@ import io.vanillabp.springboot.parameters.TaskEventMethodParameter;
 import io.vanillabp.springboot.parameters.TaskIdMethodParameter;
 import io.vanillabp.springboot.parameters.TaskParameter;
 import io.vanillabp.springboot.parameters.WorkflowAggregateMethodParameter;
-import org.slf4j.Logger;
-import org.springframework.data.repository.CrudRepository;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import io.vanillabp.springboot.utils.MutableStream;
 
 public abstract class TaskHandlerBase {
 
@@ -47,57 +52,42 @@ public abstract class TaskHandlerBase {
 
     }
     
-    protected Object execute(
+    @SuppressWarnings("unchecked")
+    protected <R> R execute(
+            final WorkflowAggregateCache workflowAggregateCache,
             final Object workflowAggregateId,
-            final Function<String, Object> multiInstanceSupplier,
-            final Function<String, Object> taskParameterSupplier,
-            final Supplier<String> userTaskIdSupplier,
-            final Supplier<TaskEvent.Event> taskEventSupplier)
+            final boolean saveAggregateAfterwards,
+            final BiFunction<Object[], MethodParameter, Boolean>... parameterProcessors)
             throws Exception {
-        
-        final var workflowAggregate = new Object[] { null };
 
         final var args = new Object[parameters.size()];
         
         // first, find domain entity as a parameter if required
-        final var index = new int[] { -1 };
         parameters
                 .stream()
-                .peek(param -> ++index[0])
                 .anyMatch(param -> processWorkflowAggregateParameter(
-                        args, index[0], param, workflowAggregate, workflowAggregateId));
+                        args, param, workflowAggregateCache, workflowAggregateId));
         
         // second, fill all the other parameters
-        index[0] = -1;
-        parameters
-                .stream()
-                .peek(param -> ++index[0])
-                .filter(param -> processTaskParameter(args, index[0], param,
-                        taskParameterSupplier))
-                .filter(param -> processUserTaskIdParameter(args, index[0], param,
-                        userTaskIdSupplier))
-                .filter(param -> processTaskEventParameter(args, index[0], param, taskEventSupplier))
-                .filter(param -> processMultiInstanceTotalParameter(args, index[0], param,
-                        multiInstanceSupplier))
-                .filter(param -> processMultiInstanceIndexParameter(args, index[0], param,
-                        multiInstanceSupplier))
-                .filter(param -> processMultiInstanceElementParameter(args, index[0], param,
-                        multiInstanceSupplier))
-                .filter(param -> processMultiInstanceResolverParameter(method, args, index[0], param,
-                        () -> {
-                            if (workflowAggregate[0] == null) {
-                                workflowAggregate[0] = workflowAggregateRepository
-                                        .findById(workflowAggregateId)
-                                        .orElseThrow();
-                            }
-                            return workflowAggregate[0];
-                        }, multiInstanceSupplier))
+        final var parameterStream = MutableStream
+                .from(parameters.stream());
+        
+        Arrays
+                .stream(parameterProcessors)
+                .forEach(parameterProcessor -> {
+                    parameterStream.apply(s ->
+                            s.filter(param -> parameterProcessor.apply(args, param)));
+                });
+        
+        parameterStream
+                .getStream()
                 // ignore unknown parameters, but they should be filtered as part of validation
                 .forEach(param -> { /* */ });
-        
+
+        final R result;
         try {
 
-            method.invoke(bean, args);
+            result = (R) method.invoke(bean, args);
 
         } catch (InvocationTargetException e) {
 
@@ -110,17 +100,19 @@ public abstract class TaskHandlerBase {
 
         }
 
-        if (workflowAggregate[0] == null) {
-            return null;
+        if ((workflowAggregateCache.workflowAggregate != null)
+                && saveAggregateAfterwards) {
+            workflowAggregateCache.workflowAggregate =
+                    workflowAggregateRepository
+                            .save(workflowAggregateCache.workflowAggregate);
         }
 
-        return workflowAggregateRepository.save(workflowAggregate[0]);
+        return result;
         
     }
     
-    private boolean processMultiInstanceTotalParameter(
+    protected boolean processMultiInstanceTotalParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
             final Function<String, Object> multiInstanceSupplier) {
 
@@ -128,7 +120,7 @@ public abstract class TaskHandlerBase {
             return true;
         }
 
-        args[index] = getMultiInstanceTotal(
+        args[param.getIndex()] = getMultiInstanceTotal(
                 ((MultiInstanceTotalMethodParameter) param).getName(),
                 multiInstanceSupplier);
         
@@ -136,9 +128,8 @@ public abstract class TaskHandlerBase {
         
     }
 
-    private boolean processTaskEventParameter(
+    protected boolean processTaskEventParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
             final Supplier<TaskEvent.Event> taskEventSupplier) {
 
@@ -146,31 +137,29 @@ public abstract class TaskHandlerBase {
             return true;
         }
 
-        args[index] = taskEventSupplier.get();
+        args[param.getIndex()] = taskEventSupplier.get();
         
         return false;
         
     }
 
-    private boolean processUserTaskIdParameter(
+    protected boolean processTaskIdParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
-            final Supplier<String> userTaskIdSupplier) {
+            final Supplier<String> taskIdSupplier) {
 
         if (!(param instanceof TaskIdMethodParameter)) {
             return true;
         }
 
-        args[index] = userTaskIdSupplier.get();
+        args[param.getIndex()] = taskIdSupplier.get();
         
         return false;
         
     }
 
-    private boolean processMultiInstanceIndexParameter(
+    protected boolean processMultiInstanceIndexParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
             final Function<String, Object> multiInstanceSupplier) {
 
@@ -178,7 +167,7 @@ public abstract class TaskHandlerBase {
             return true;
         }
 
-        args[index] = getMultiInstanceIndex(
+        args[param.getIndex()] = getMultiInstanceIndex(
                 ((MultiInstanceIndexMethodParameter) param).getName(),
                 multiInstanceSupplier);
         
@@ -186,9 +175,8 @@ public abstract class TaskHandlerBase {
         
     }
 
-    private boolean processMultiInstanceElementParameter(
+    protected boolean processMultiInstanceElementParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
             final Function<String, Object> multiInstanceSupplier) {
 
@@ -196,7 +184,7 @@ public abstract class TaskHandlerBase {
             return true;
         }
         
-        args[index] = getMultiInstanceElement(
+        args[param.getIndex()] = getMultiInstanceElement(
                 ((MultiInstanceElementMethodParameter) param).getName(),
                 multiInstanceSupplier);
         
@@ -235,10 +223,8 @@ public abstract class TaskHandlerBase {
 
     }
 
-    private boolean processMultiInstanceResolverParameter(
-            final Method method,
+    protected boolean processMultiInstanceResolverParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
             final Supplier<Object> workflowAggregate,
             final Function<String, Object> multiInstanceSupplier) {
@@ -259,11 +245,11 @@ public abstract class TaskHandlerBase {
                 .forEach(name -> multiInstances.put(name, getMultiInstance(name, multiInstanceSupplier)));
 
         try {
-            args[index] = resolver.resolve(workflowAggregate.get(), multiInstances);
+            args[param.getIndex()] = resolver.resolve(workflowAggregate.get(), multiInstances);
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed processing MultiInstanceElementResolver for parameter '"
-                    + index
+                    + param.getParameter()
                     + "' of method '"
                     + method
                     + "'", e);
@@ -273,9 +259,8 @@ public abstract class TaskHandlerBase {
         
     }
     
-    private boolean processTaskParameter(
+    protected boolean processTaskParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
             final Function<String, Object> taskParameterSupplier) {
         
@@ -283,21 +268,20 @@ public abstract class TaskHandlerBase {
             return true;
         }
         
-        args[index] = taskParameterSupplier.apply(
+        args[param.getIndex()] = taskParameterSupplier.apply(
                 ((TaskParameter) param).getName());
         
         return false;
         
     }
-            
-    
-    private boolean processWorkflowAggregateParameter(
+
+    protected boolean processWorkflowAggregateParameter(
             final Object[] args,
-            final int index,
             final MethodParameter param,
-            final Object[] workflowAggregate,
+            final WorkflowAggregateCache workflowAggregateCache,
             final Object workflowAggregateId) {
 
+        
         if (!(param instanceof WorkflowAggregateMethodParameter)) {
             return true;
         }
@@ -305,11 +289,11 @@ public abstract class TaskHandlerBase {
         // Using findById is required to get an object instead of a Hibernate proxy.
         // Otherwise for e.g. Camunda8 connector JSON serialization of the
         // workflow aggregate is not possible.
-        workflowAggregate[0] = workflowAggregateRepository
+        workflowAggregateCache.workflowAggregate = workflowAggregateRepository
                 .findById(workflowAggregateId)
                 .get();
 
-        args[index] = workflowAggregate[0];
+        args[param.getIndex()] = workflowAggregateCache.workflowAggregate;
 
         return false;
         
