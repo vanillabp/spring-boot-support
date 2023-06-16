@@ -64,8 +64,7 @@ public abstract class TaskHandlerBase {
         
         // first, find domain entity as a parameter if required
         parameters
-                .stream()
-                .anyMatch(param -> processWorkflowAggregateParameter(
+                .forEach(param -> processWorkflowAggregateParameter(
                         args, param, workflowAggregateCache, workflowAggregateId));
         
         // second, fill all the other parameters
@@ -281,7 +280,6 @@ public abstract class TaskHandlerBase {
             final WorkflowAggregateCache workflowAggregateCache,
             final Object workflowAggregateId) {
 
-        
         if (!(param instanceof WorkflowAggregateMethodParameter)) {
             return true;
         }
