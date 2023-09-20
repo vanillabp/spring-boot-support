@@ -45,9 +45,6 @@ public class WorkflowAndModule {
         if (this.bpmnProcessId == null) {
             return true;
         }
-        if (bpmnProcessId == null) {
-            return true;
-        }
         
         return bpmnProcessIds.contains(this.bpmnProcessId);
         
@@ -68,7 +65,7 @@ public class WorkflowAndModule {
             return true;
         }
         if (bpmnProcessId == null) {
-            return true;
+            return false;
         }
         
         return this.bpmnProcessId.equals(bpmnProcessId);
