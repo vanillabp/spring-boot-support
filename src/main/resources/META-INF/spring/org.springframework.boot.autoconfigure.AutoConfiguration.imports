@@ -1,0 +1,3 @@
+io.vanillabp.springboot.adapter.AdapterAwareProcessServiceConfiguration
+io.vanillabp.springboot.utils.JpaSpringDataUtilConfiguration
+io.vanillabp.springboot.modules.WorkflowModulePropertiesConfiguration
