@@ -1,18 +1,17 @@
 package io.vanillabp.springboot.adapter;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.Collection;
-import java.util.List;
-
-import org.springframework.context.ApplicationContext;
-
 import io.vanillabp.spi.service.TaskEvent;
 import io.vanillabp.spi.service.TaskId;
 import io.vanillabp.spi.service.WorkflowTask;
 import io.vanillabp.springboot.adapter.wiring.AbstractTaskWiring;
 import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MethodParameterFactory;
+import org.springframework.context.ApplicationContext;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.util.Collection;
+import java.util.List;
 
 public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessServiceImplementation<?>, M extends MethodParameterFactory>
         extends AbstractTaskWiring<T, WorkflowTask, M> {
@@ -68,6 +67,7 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
     }
     
     protected abstract void connectToBpms(
+            String workflowModuleId,
             PS processService,
             Object bean,
             T connectable,

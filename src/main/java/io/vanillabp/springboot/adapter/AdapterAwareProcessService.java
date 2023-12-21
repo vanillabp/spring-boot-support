@@ -11,8 +11,8 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * A process service which is aware of multiple adapter-specific process services.
@@ -39,16 +39,16 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
 
     private String primaryBpmnProcessId;
     
-    private Set<String> bpmnProcessIds = new HashSet<>();
+    private final Set<String> bpmnProcessIds = new HashSet<>();
 
-    private Set<String> messageBasedStartEventsMessageNames = new HashSet<>();
+    private final Set<String> messageBasedStartEventsMessageNames = new HashSet<>();
     
     private final Class<?> workflowAggregateIdClass;
     
     private final Class<?> workflowAggregateClass;
     
     @SuppressWarnings("unused")
-    private Set<String> signalBasedStartEventsSignalNames = new HashSet<>();
+    private final Set<String> signalBasedStartEventsSignalNames = new HashSet<>();
     
     public AdapterAwareProcessService(
             final VanillaBpProperties properties,
@@ -117,11 +117,10 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if ((this.workflowModuleId != null)
                 && (workflowModuleId != null)
                 && !this.workflowModuleId.equals(workflowModuleId)) {
-            
-            final var listOfAdapters = processServicesByAdapter
-                    .keySet()
-                    .stream()
-                    .collect(Collectors.joining("', '"));
+
+            final var listOfAdapters = String.join(
+                    "', '",
+                    processServicesByAdapter.keySet());
             
             throw new RuntimeException("Wiring the workflowModuleId '"
                     + workflowModuleId
@@ -140,10 +139,9 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if (bpmnProcessIds.contains(bpmnProcessId)
                 && !processServicesByAdapter.containsKey(adapterId)) {
             
-            final var listOfAdapters = processServicesByAdapter
-                    .keySet()
-                    .stream()
-                    .collect(Collectors.joining("', '"));
+            final var listOfAdapters = String.join(
+                    "', '",
+                    processServicesByAdapter.keySet());
             
             throw new RuntimeException("Wiring the bpmnProcessId '"
                     + bpmnProcessId
@@ -223,10 +221,10 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                     .stream()
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, messageName))
-                    .collect(Collectors.toList())
+                    .toList()
                     .stream()
                     .findFirst()
-                    .get();
+                    .orElseGet(() -> workflowAggregate);
             
         }
         
@@ -251,7 +249,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, messageName, correlationId))
                     .findFirst()
-                    .get();
+                    .orElseGet(() -> workflowAggregate);
             
         }
         
@@ -275,7 +273,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, message))
                     .findFirst()
-                    .get();
+                    .orElseGet(() -> workflowAggregate);
             
         }
         
@@ -300,7 +298,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, message, correlationId))
                     .findFirst()
-                    .get();
+                    .orElseGet(() -> workflowAggregate);
             
         }
         
@@ -323,7 +321,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                         return null;
                     }
                 })
-                .filter(result -> result != null)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElseThrow(() -> {
                     exceptions.forEach(e -> logger.debug(
@@ -353,7 +351,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                         return null;
                     }
                 })
-                .filter(result -> result != null)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElseThrow(() -> {
                     exceptions.forEach(e -> logger.debug(
@@ -382,7 +380,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                         return null;
                     }
                 })
-                .filter(result -> result != null)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElseThrow(() -> {
                     exceptions.forEach(e -> logger.debug(
@@ -412,7 +410,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                         return null;
                     }
                 })
-                .filter(result -> result != null)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElseThrow(() -> {
                     exceptions.forEach(e -> logger.debug(

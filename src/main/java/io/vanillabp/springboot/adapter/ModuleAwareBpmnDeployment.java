@@ -1,11 +1,8 @@
 package io.vanillabp.springboot.adapter;
 
-import static java.lang.String.format;
-
 import io.vanillabp.springboot.modules.WorkflowModuleProperties;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -13,6 +10,8 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+
+import static java.lang.String.format;
 
 public abstract class ModuleAwareBpmnDeployment {
 
@@ -23,9 +22,6 @@ public abstract class ModuleAwareBpmnDeployment {
     protected abstract String getAdapterId();
     
     private final VanillaBpProperties properties;
-
-    @Value("${spring.application.name}")
-    protected String applicationName;
 
     @Autowired(required = false)
     private List<WorkflowModuleProperties> moduleProperties;
@@ -54,14 +50,10 @@ public abstract class ModuleAwareBpmnDeployment {
         final var workflowModuleId = propertySpecification == null
                 ? null
                 : propertySpecification.getWorkflowModuleId();
-    	final var workflowModuleName = propertySpecification == null
-    	        ? applicationName
-                : propertySpecification.getWorkflowModuleId();
         final var resourcesPath = resourcesPath(workflowModuleId);
     	
         deployWorkflowModule(
                 workflowModuleId,
-                workflowModuleName,
                 resourcesPath);
     	
     }
@@ -83,31 +75,29 @@ public abstract class ModuleAwareBpmnDeployment {
 
     protected abstract void doDeployment(
     		String workflowModuleId,
-            String workflowModuleName,
     		Resource[] bpmns,
     		Resource[] dmns,
     		Resource[] cmms) throws Exception;
 
     private void deployWorkflowModule(
     		final String workflowModuleId,
-            final String workflowModuleName,
     		final String basePackageName) {
     	
         try {
 
-            final var bpmns = findResources(workflowModuleName, basePackageName, "*.bpmn");
-            final var cmms = findResources(workflowModuleName, basePackageName, "*.cmmn");
-            final var dmns = findResources(workflowModuleName, basePackageName, "*.dmn");
+            final var bpmns = findResources(workflowModuleId, basePackageName, "*.bpmn");
+            final var cmms = findResources(workflowModuleId, basePackageName, "*.cmmn");
+            final var dmns = findResources(workflowModuleId, basePackageName, "*.dmn");
 
             doDeployment(
                     workflowModuleId,
-                    workflowModuleName,
                     bpmns,
                     dmns,
                     cmms);
 
             getLogger()
-                    .info("Deployed resources for process archive <{}>", workflowModuleName);
+                    .info("Deployed resources for process archive <{}>",
+                            workflowModuleId == null ? "default" : workflowModuleId);
 
         } catch (RuntimeException e) {
             throw e;
@@ -118,7 +108,7 @@ public abstract class ModuleAwareBpmnDeployment {
     }
 
     private Resource[] findResources(
-            final String workflowModuleName,
+            final String workflowModuleId,
             final String basePackageName,
             final String fileNamePattern) throws IOException {
 
@@ -128,7 +118,9 @@ public abstract class ModuleAwareBpmnDeployment {
                 fileNamePattern);
 
         getLogger()
-                .debug("Scanning process archive <{}> for {}", workflowModuleName, resourcesPath);
+                .debug("Scanning process archive <{}> for {}",
+                        workflowModuleId == null ? "default" : workflowModuleId,
+                        resourcesPath);
 
         return new PathMatchingResourcePatternResolver().getResources(resourcesPath);
 
