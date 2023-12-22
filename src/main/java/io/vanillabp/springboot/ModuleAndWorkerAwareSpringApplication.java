@@ -94,9 +94,9 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
     private static Set<String> retrieveAndUpdateActiveProfiles(
             final String activeProfilesSystemProperty,
             final ConfigurableEnvironment environment) {
-        
+
         final var result = new LinkedHashSet<String>();
-        
+
         Arrays.stream(environment.getActiveProfiles())
                 .forEach(result::add);
         
@@ -138,6 +138,9 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
         if (workerId == null) {
             workerId = System.getProperty(WORKER_ID_ENV_NAME);
         }
+        if (workerId == null) {
+            workerId = System.getProperty(WORKER_ID_PROPERTY_NAME);
+        }
 
         if (workerId == null) {
             var isDevelopment = activeProfiles.stream().anyMatch(profile -> profile.matches("local"));
@@ -147,7 +150,10 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
         }
 
         if (workerId == null) {
-            throw new RuntimeException("No environment variable '" + WORKER_ID_ENV_NAME
+            throw new RuntimeException("No environment variable '"
+                    + WORKER_ID_ENV_NAME
+                    + "' or system property '"
+                    + WORKER_ID_PROPERTY_NAME
                     + "' given! This is necessary to run in clustered environments properly.");
         }
 

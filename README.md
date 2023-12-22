@@ -31,7 +31,10 @@ public class TaxiApplication {
 
 In a decentralized environment workload is fetched rather than pushed to deal with back-pressure (e.g. Camunda 7's external tasks or Camunda 8's workers). In a load-balanced cluster environment, to identify each particular node fetching jobs from an external service in a unique way, the client has to pass a worker ID to that service. This worker ID is typically fetched from the environment like the host's IP address or a Kubernetes pod's name.
 
-To read this ID from the environment and pass it to the client bean is a feature of the Spring application class `ModuleAndWorkerAwareSpringApplication`. First the system environment `WORKER_ID` is read and if empty then the Java system property `WORKER_ID` is used.
+To read this ID from the environment and pass it to the client bean, is a feature of the Spring application class `ModuleAndWorkerAwareSpringApplication`:
+1. First the system environment `WORKER_ID` is read
+2. If empty then the Java system property `WORKER_ID` is used.
+3. If still not given, then the Java system property `workerId` is used.
 
 So, one can start the Java process like this: 
 
@@ -64,6 +67,8 @@ private String workerId;
 ```
 
 Currently, this value is used by BPMS adapters.
+
+*Hint:* If one is using the original `SpringApplication` then the worker-id is injected based on spring-boot property `workerId` according to the `@Value` injection shown above.
 
 ## Workflow modules
 
