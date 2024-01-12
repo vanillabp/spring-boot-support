@@ -1,12 +1,14 @@
 package io.vanillabp.springboot.adapter;
 
 import io.vanillabp.springboot.modules.WorkflowModuleProperties;
+import io.vanillabp.springboot.utils.WorkflowAndModule;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +63,7 @@ public abstract class ModuleAwareBpmnDeployment {
     private String resourcesPath(
             final String workflowModuleId) {
                 
-        return properties
+        final var adaptersPath = properties
                 .getAdapters()
                 .entrySet()
                 .stream()
@@ -70,6 +72,20 @@ public abstract class ModuleAwareBpmnDeployment {
                 .map(entry -> entry.getValue().getResourcesPath())
                 .or(() -> Optional.ofNullable(properties.getResourcesPath()))
                 .orElse(DEFAULT_RESOURCES_PATH);
+
+        if (workflowModuleId == null) {
+            return adaptersPath;
+        }
+
+        final var workflowModulePath = properties
+                .getWorkflows()
+                .stream()
+                .filter(workflowAndModuleAdapters -> workflowAndModuleAdapters.matches(workflowModuleId))
+                .findFirst()
+                .map(WorkflowAndModule::getResourcesPath)
+                .orElseGet(() -> workflowModuleId);
+
+        return adaptersPath + File.separator + workflowModulePath;
 
     }
 

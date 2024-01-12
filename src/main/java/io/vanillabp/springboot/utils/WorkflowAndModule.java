@@ -7,6 +7,8 @@ public class WorkflowAndModule {
     private String workflowModuleId;
     
     private String bpmnProcessId;
+
+    private String resourcesPath;
     
     public String getBpmnProcessId() {
         return bpmnProcessId;
@@ -22,6 +24,14 @@ public class WorkflowAndModule {
     
     public void setWorkflowModuleId(String workflowModuleId) {
         this.workflowModuleId = workflowModuleId;
+    }
+
+    public String getResourcesPath() {
+        return resourcesPath;
+    }
+
+    public void setResourcesPath(String resourcesPath) {
+        this.resourcesPath = resourcesPath;
     }
 
     public boolean matches(
