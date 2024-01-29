@@ -18,17 +18,19 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
 
     public TaskWiringBase(
             final ApplicationContext applicationContext,
+            final SpringBeanUtil springBeanUtil,
             final M methodParameterFactory) {
         
-        super(applicationContext, methodParameterFactory);
+        super(applicationContext, springBeanUtil, methodParameterFactory);
         
     }
 
     @SuppressWarnings("unchecked")
     public TaskWiringBase(
-            final ApplicationContext applicationContext) {
-        
-        this(applicationContext, (M) new MethodParameterFactory());
+            final ApplicationContext applicationContext,
+            final SpringBeanUtil springBeanUtil) {
+
+        this(applicationContext, springBeanUtil, (M) new MethodParameterFactory());
         
     }
 

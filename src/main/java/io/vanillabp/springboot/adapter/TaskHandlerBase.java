@@ -1,17 +1,5 @@
 package io.vanillabp.springboot.adapter;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
-import org.slf4j.Logger;
-import org.springframework.data.repository.CrudRepository;
-
 import io.vanillabp.spi.service.MultiInstanceElementResolver;
 import io.vanillabp.spi.service.TaskEvent;
 import io.vanillabp.springboot.adapter.wiring.WorkflowAggregateCache;
@@ -25,6 +13,17 @@ import io.vanillabp.springboot.parameters.TaskIdMethodParameter;
 import io.vanillabp.springboot.parameters.TaskParameter;
 import io.vanillabp.springboot.parameters.WorkflowAggregateMethodParameter;
 import io.vanillabp.springboot.utils.MutableStream;
+import org.slf4j.Logger;
+import org.springframework.data.repository.CrudRepository;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class TaskHandlerBase {
 
@@ -289,7 +288,7 @@ public abstract class TaskHandlerBase {
         // workflow aggregate is not possible.
         workflowAggregateCache.workflowAggregate = workflowAggregateRepository
                 .findById(workflowAggregateId)
-                .get();
+                .orElse(null);
 
         args[param.getIndex()] = workflowAggregateCache.workflowAggregate;
 
