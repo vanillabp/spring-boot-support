@@ -1,7 +1,6 @@
 package io.vanillabp.springboot.adapter;
 
 import io.vanillabp.spi.process.ProcessService;
-import io.vanillabp.springboot.adapter.VanillaBpProperties.WorkflowAndModuleAdapters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.repository.CrudRepository;
@@ -24,8 +23,8 @@ import java.util.Set;
  * is done for each adapter.
  * <p>
  * @see VanillaBpProperties#getDefaultAdapter()
- * @see VanillaBpProperties#getWorkflows()
- * @see WorkflowAndModuleAdapters#getAdapter()
+ * @see VanillaBpProperties.WorkflowModuleAdapterProperties#getDefaultAdapter()
+ * @see VanillaBpProperties.WorkflowAdapterProperties#getDefaultAdapter()
  */
 public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
     
@@ -34,6 +33,8 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
     private final VanillaBpProperties properties;
 
     private final Map<String, ProcessServiceImplementation<DE>> processServicesByAdapter;
+
+    private final List<String> wiredAdapterIds = new LinkedList<>();
 
     private String workflowModuleId;
 
@@ -62,7 +63,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         this.workflowAggregateClass = workflowAggregateClass;
         
         processServicesByAdapter.forEach((adapterId, adapter) -> adapter.setParent(this));
-        
+
     }
     
     public CrudRepository<DE, ?> getWorkflowAggregateRepository() {
@@ -162,6 +163,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if (this.workflowModuleId == null) {
             this.workflowModuleId = workflowModuleId;
         }
+
         if (isPrimary) {
             this.primaryBpmnProcessId = bpmnProcessId;
             if (messageBasedStartEventsMessageNames != null) {
@@ -171,26 +173,28 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                 this.signalBasedStartEventsSignalNames.addAll(signalBasedStartEventsSignalNames);
             }
         }
+
+        wiredAdapterIds.add(adapterId);
+        if (wiredAdapterIds.size() == processServicesByAdapter.size()) { // all adapters wired for this service
+            properties.validatePropertiesFor(
+                    wiredAdapterIds,
+                    workflowModuleId,
+                    bpmnProcessId);
+        }
+
         this.bpmnProcessIds.add(bpmnProcessId);
         
     }
 
-    private List<String> determineAdapterIds() {
-        
-        return properties
-                .getWorkflows()
-                .stream()
-                .filter(workflow -> workflow.matchesAny(workflowModuleId, bpmnProcessIds))
-                .findFirst()
-                .map(WorkflowAndModuleAdapters::getAdapter)
-                .filter(adapter -> !adapter.isEmpty())
-                .orElse(properties.getDefaultAdapter());
+    private List<String> getAdapterIds() {
+
+        return properties.getDefaultAdapterFor(workflowModuleId, primaryBpmnProcessId);
 
     }
     
-    private String determinePrimaryAdapterId() {
+    private String getPrimaryAdapterId() {
         
-        return determineAdapterIds().get(0);
+        return getAdapterIds().get(0);
         
     }
     
@@ -199,7 +203,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final DE workflowAggregate) throws Exception {
         
         return processServicesByAdapter
-                .get(determinePrimaryAdapterId())
+                .get(getPrimaryAdapterId())
                 .startWorkflow(workflowAggregate);
 
     }
@@ -212,12 +216,12 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if (messageBasedStartEventsMessageNames.contains(messageName)) {
 
             return processServicesByAdapter
-                    .get(determinePrimaryAdapterId())
+                    .get(getPrimaryAdapterId())
                     .correlateMessage(workflowAggregate, messageName);
             
         } else {
         
-            return determineAdapterIds()
+            return getAdapterIds()
                     .stream()
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, messageName))
@@ -239,12 +243,12 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if (messageBasedStartEventsMessageNames.contains(messageName)) {
 
             return processServicesByAdapter
-                    .get(determinePrimaryAdapterId())
+                    .get(getPrimaryAdapterId())
                     .correlateMessage(workflowAggregate, messageName, correlationId);
             
         } else {
         
-            return determineAdapterIds()
+            return getAdapterIds()
                     .stream()
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, messageName, correlationId))
@@ -263,12 +267,12 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if (messageBasedStartEventsMessageNames.contains(message.getClass().getSimpleName())) {
 
             return processServicesByAdapter
-                    .get(determinePrimaryAdapterId())
+                    .get(getPrimaryAdapterId())
                     .correlateMessage(workflowAggregate, message);
             
         } else {
         
-            return determineAdapterIds()
+            return getAdapterIds()
                     .stream()
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, message))
@@ -288,12 +292,12 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         if (messageBasedStartEventsMessageNames.contains(message.getClass().getSimpleName())) {
 
             return processServicesByAdapter
-                    .get(determinePrimaryAdapterId())
+                    .get(getPrimaryAdapterId())
                     .correlateMessage(workflowAggregate, message, correlationId);
             
         } else {
         
-            return determineAdapterIds()
+            return getAdapterIds()
                     .stream()
                     .map(processServicesByAdapter::get)
                     .map(adapter -> adapter.correlateMessage(workflowAggregate, message, correlationId))
@@ -310,7 +314,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String taskId) {
         
         final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
-        return determineAdapterIds()
+        return getAdapterIds()
                 .stream()
                 .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
@@ -340,7 +344,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String bpmnErrorCode) {
         
         final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
-        return determineAdapterIds()
+        return getAdapterIds()
                 .stream()
                 .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
@@ -369,7 +373,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String taskId) {
         
         final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
-        return determineAdapterIds()
+        return getAdapterIds()
                 .stream()
                 .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
@@ -399,7 +403,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
             final String bpmnErrorCode) {
         
         final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
-        return determineAdapterIds()
+        return getAdapterIds()
                 .stream()
                 .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
                 .map(adapter -> {
