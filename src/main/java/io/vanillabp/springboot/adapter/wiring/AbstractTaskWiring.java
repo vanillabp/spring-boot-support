@@ -1,5 +1,23 @@
 package io.vanillabp.springboot.adapter.wiring;
 
+import io.vanillabp.spi.service.BpmnProcess;
+import io.vanillabp.spi.service.MultiInstanceElement;
+import io.vanillabp.spi.service.MultiInstanceIndex;
+import io.vanillabp.spi.service.MultiInstanceTotal;
+import io.vanillabp.spi.service.NoResolver;
+import io.vanillabp.spi.service.TaskParam;
+import io.vanillabp.spi.service.WorkflowService;
+import io.vanillabp.springboot.adapter.Connectable;
+import io.vanillabp.springboot.adapter.SpringBeanUtil;
+import io.vanillabp.springboot.parameters.MethodParameter;
+import io.vanillabp.springboot.parameters.MethodParameterFactory;
+import io.vanillabp.springboot.utils.MutableStream;
+import io.vanillabp.springboot.utils.TriFunction;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.context.ApplicationContext;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.StringUtils;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -13,35 +31,21 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.springframework.aop.support.AopUtils;
-import org.springframework.context.ApplicationContext;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.StringUtils;
-
-import io.vanillabp.spi.service.BpmnProcess;
-import io.vanillabp.spi.service.MultiInstanceElement;
-import io.vanillabp.spi.service.MultiInstanceIndex;
-import io.vanillabp.spi.service.MultiInstanceTotal;
-import io.vanillabp.spi.service.NoResolver;
-import io.vanillabp.spi.service.TaskParam;
-import io.vanillabp.spi.service.WorkflowService;
-import io.vanillabp.springboot.adapter.Connectable;
-import io.vanillabp.springboot.parameters.MethodParameter;
-import io.vanillabp.springboot.parameters.MethodParameterFactory;
-import io.vanillabp.springboot.utils.MutableStream;
-import io.vanillabp.springboot.utils.TriFunction;
-
 public abstract class AbstractTaskWiring<T extends Connectable, A extends Annotation, M extends MethodParameterFactory> {
 
     protected final ApplicationContext applicationContext;
-    
+
+    protected final SpringBeanUtil springBeanUtil;
+
     protected final M methodParameterFactory;
     
     public AbstractTaskWiring(
             final ApplicationContext applicationContext,
+            final SpringBeanUtil springBeanUtil,
             final M methodParameterFactory) {
 
         this.applicationContext = applicationContext;
+        this.springBeanUtil = springBeanUtil;
         this.methodParameterFactory = methodParameterFactory;
         
     }
@@ -68,7 +72,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                         .stream(method.getAnnotationsByType(getAnnotationType()))
                         .map(annotation -> Map.entry(method, annotation)))
                 .peek(m -> {
-                    if (tested.length() > 0) {
+                    if (!tested.isEmpty()) {
                         tested.append(", ");
                     }
                     tested.append(m.getKey().toString());
@@ -76,7 +80,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                 .filter(m -> methodMatchesTaskDefinition.apply(m.getKey(), m.getValue())
                         || methodMatchesElementId.apply(m.getKey(), m.getValue()))
                 .peek(m -> {
-                    if (matching.length() > 0) {
+                    if (!matching.isEmpty()) {
                         matching.append(", ");
                     }
                     matching.append(m.getKey().toString());
@@ -111,9 +115,9 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
         final var tested = new StringBuilder();
         final var matching = new StringBuilder();
         final var matchingMethods = new AtomicInteger(0);
-        
-        applicationContext
-                .getBeansWithAnnotation(WorkflowService.class)
+
+        springBeanUtil
+                .getWorkflowAnnotatedBeans()
                 .entrySet()
                 .stream()
                 .filter(bean -> isAboutConnectableProcess(
@@ -245,7 +249,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
         parameters
                 .getStream()
                 .forEach(param -> {
-                    if (unknown.length() != 0) {
+                    if (!unknown.isEmpty()) {
                         unknown.append(", ");
                     }
                     unknown.append(index.get());
@@ -256,7 +260,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                     unknown.append(")");
                 });
         
-        if (unknown.length() != 0) {
+        if (!unknown.isEmpty()) {
             throw new RuntimeException(
                     "Unexpected parameter(s) in method '"
                     + method.getName()
@@ -393,12 +397,12 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
 
         final var tested = new StringBuilder();
         
-        final var matchingServices = applicationContext
-                .getBeansWithAnnotation(WorkflowService.class)
+        final var matchingServices = springBeanUtil
+                .getWorkflowAnnotatedBeans()
                 .entrySet()
                 .stream()
                 .peek(bean -> {
-                    if (tested.length() > 0) {
+                    if (!tested.isEmpty()) {
                         tested.append(", ");
                     }
                     tested.append(bean.getKey());
@@ -410,7 +414,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                         Entry::getValue,
                         Collectors.mapping(Entry::getKey, Collectors.toList())));
 
-        if (matchingServices.size() == 0) {
+        if (matchingServices.isEmpty()) {
             throw new RuntimeException(
                     "No bean annotated with @WorkflowService(bpmnProcessId=\""
                     + bpmnProcessId
@@ -425,7 +429,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                     .entrySet()
                     .stream()
                     .peek(entry -> {
-                        if (found.length() > 0) {
+                        if (!found.isEmpty()) {
                             found.append("; ");
                         }
                         found.append(entry.getKey().getName());
@@ -433,7 +437,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                     })
                     .flatMap(entry -> entry.getValue().stream())
                     .forEach(matchingService -> {
-                        if (found.length() > 0) {
+                        if (!found.isEmpty()) {
                             found.append(", ");
                         }
                         found.append(matchingService.getName());
@@ -497,7 +501,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                 .map(bpmnProcess -> bpmnProcess.bpmnProcessId().equals(BpmnProcess.USE_CLASS_NAME)
                         ? workflowServiceClass.getSimpleName()
                         : bpmnProcess.bpmnProcessId())
-                .collect(Collectors.toList());
+                .toList();
         if (primaryBpmnProcessIds.size() > 1) {
             final var bpmnProcessIds = primaryBpmnProcessIds
                     .stream()

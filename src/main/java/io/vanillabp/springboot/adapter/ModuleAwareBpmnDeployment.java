@@ -6,71 +6,67 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
-
-import static java.lang.String.format;
 
 public abstract class ModuleAwareBpmnDeployment {
 
-	public static final String DEFAULT_RESOURCES_PATH = "processes";
-	
     protected abstract Logger getLogger();
     
     protected abstract String getAdapterId();
     
     private final VanillaBpProperties properties;
 
+    private final String applicationName;
+
     @Autowired(required = false)
     private List<WorkflowModuleProperties> moduleProperties;
     
     public ModuleAwareBpmnDeployment(
-            final VanillaBpProperties properties) {
+            final VanillaBpProperties properties,
+            final String applicationName) {
         
         this.properties = properties;
+        this.applicationName = applicationName;
         
     }
-    
+
     protected void deployAllWorkflowModules() {
-    	
-    	if (moduleProperties == null) {
-    		deployWorkflowModule(null);
-    		return;
-    	}
-    	
-    	moduleProperties.forEach(this::deployWorkflowModule);
+
+        final var hasExplicitDefinedWorkflowModules = (moduleProperties != null)
+                && !moduleProperties.isEmpty();
+
+        if (hasExplicitDefinedWorkflowModules) {
+            moduleProperties.forEach(this::deployWorkflowModule);
+            return;
+        }
+
+        if (!StringUtils.hasText(applicationName)) {
+            throw new RuntimeException(
+                    "No workflow-module configurations found (see "
+                    + "https://github.com/vanillabp/spring-boot-support?tab=readme-ov-file#configuration)\n"
+                    + "and need to use property 'spring.application.name' as the workflow-module-id instead but it is not defined!");
+        } else {
+            getLogger().info(
+                    "No workflow-module configurations found (see "
+                    + "https://github.com/vanillabp/spring-boot-support?tab=readme-ov-file#configuration),\n"
+                    + "will use property 'spring.application.name' as the workflow-module-id instead: {}",
+                    applicationName);
+        }
+        deployWorkflowModule(applicationName);
     	
     }
     
     private void deployWorkflowModule(
     		final WorkflowModuleProperties propertySpecification) {
     	
-        final var workflowModuleId = propertySpecification == null
-                ? null
-                : propertySpecification.getWorkflowModuleId();
-        final var resourcesPath = resourcesPath(workflowModuleId);
-    	
-        deployWorkflowModule(
-                workflowModuleId,
-                resourcesPath);
-    	
-    }
-    
-    private String resourcesPath(
-            final String workflowModuleId) {
-                
-        return properties
-                .getAdapters()
-                .entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().equals(getAdapterId()))
-                .findFirst()
-                .map(entry -> entry.getValue().getResourcesPath())
-                .or(() -> Optional.ofNullable(properties.getResourcesPath()))
-                .orElse(DEFAULT_RESOURCES_PATH);
+        final var workflowModuleId = propertySpecification.getWorkflowModuleId();
 
+        deployWorkflowModule(
+                workflowModuleId);
+    	
     }
 
     protected abstract void doDeployment(
@@ -80,14 +76,16 @@ public abstract class ModuleAwareBpmnDeployment {
     		Resource[] cmms) throws Exception;
 
     private void deployWorkflowModule(
-    		final String workflowModuleId,
-    		final String basePackageName) {
-    	
+    		final String workflowModuleId) {
+
+        final var resourcesLocation = properties
+                .getAdapterResourcesLocationFor(workflowModuleId, getAdapterId());
+
         try {
 
-            final var bpmns = findResources(workflowModuleId, basePackageName, "*.bpmn");
-            final var cmms = findResources(workflowModuleId, basePackageName, "*.cmmn");
-            final var dmns = findResources(workflowModuleId, basePackageName, "*.dmn");
+            final var bpmns = findResources(workflowModuleId, resourcesLocation, "*.bpmn");
+            final var cmms = findResources(workflowModuleId, resourcesLocation, "*.cmmn");
+            final var dmns = findResources(workflowModuleId, resourcesLocation, "*.dmn");
 
             doDeployment(
                     workflowModuleId,
@@ -109,20 +107,31 @@ public abstract class ModuleAwareBpmnDeployment {
 
     private Resource[] findResources(
             final String workflowModuleId,
-            final String basePackageName,
+            final String adapterResourcesLocation,
             final String fileNamePattern) throws IOException {
 
-        final var resourcesPath = format("%s%s/**/%s",
-                ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX,
-                basePackageName.replace('.', '/'),
-                fileNamePattern);
+        // test for multi-jar
+        if ((moduleProperties != null)
+                && (!adapterResourcesLocation.contains(":") // e.g. file://, classpath://, etc.
+                || adapterResourcesLocation.startsWith(ResourcePatternResolver.CLASSPATH_URL_PREFIX))) {
+            getLogger()
+                    .warn("On using workflow modules you should define resource-path using '{}' to ensure BPMN resources are found!\nCurrent resource-path of module '{}' for adapater '{}':\n{}",
+                            ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX,
+                            workflowModuleId,
+                            getAdapterId(),
+                            adapterResourcesLocation);
+        }
+
+        final var resourcesLocation = adapterResourcesLocation.endsWith("/")
+                ? adapterResourcesLocation + fileNamePattern
+                : adapterResourcesLocation + "/" + fileNamePattern;
 
         getLogger()
                 .debug("Scanning process archive <{}> for {}",
                         workflowModuleId == null ? "default" : workflowModuleId,
-                        resourcesPath);
+                        resourcesLocation);
 
-        return new PathMatchingResourcePatternResolver().getResources(resourcesPath);
+        return new PathMatchingResourcePatternResolver().getResources(resourcesLocation);
 
     }
 

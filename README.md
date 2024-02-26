@@ -76,6 +76,8 @@ For each use-case to be implemented, the BPMN and the underlying implementation 
 
 To encapsulate a workflow module in its runtime environment (e.g. Spring boot container, JEE application container) all necessary configuration and dependencies are bundled as if it were a standalone application. Therefore, each workflow should be an independent module (jar) containing classes and resources (e.g. the BPMN file).
 
+If you run an application consisting of only one workflow module you don't need to define a workflow module explicitly. Instead, the property `spring.application.name` is used as the workflow module id.
+
 ### Configuration
 
 In a Spring boot environment one can use [externalized properties](https://www.baeldung.com/spring-yaml) to store configuration details. Typically, a YAML formatted file stored in classpath `config/application.yaml` is used. In a workflow module the same mechanism is used, but the name of the YAML file is customized (e.g. `ride.yaml` for the taxi ride example).
@@ -105,6 +107,27 @@ public class RideProperties
     ...
 }
 ```
+
+### Loading BPM engine resources
+
+Each process engine uses files (BPMN, DMN, etc.) to run workflows. Those files are bundled as part of the workflow module and loaded for each module separately.
+Therefore each workflow module has to define a specific directory not clashing with other workflow modules in the classpath:
+
+```yaml
+vanillabp:
+  workflow-modules:
+    ride:
+      adapters:
+        camunda7:
+          resources-location: classpath*:/ride/camunda7
+        camunda8:
+           resources-location: classpath*:/ride/camunda8
+```
+
+*Hint:* The BPMN standard is about defining processes but each process engine needs specific attributes to run them.
+Therefore, on migrating workflows from one engine to another, the BPMN files have to be copied and changed
+according to new engine used. Having this in mind one should also define a resources location specific to the current engine used,
+even if there are no plans to migrate to any other engine yet (see sample above).
 
 ## Spring boot profiles
 
@@ -202,33 +225,34 @@ The second scenario is fully supported by VanillaBP. It is a minimally invasive 
 
 In periods of no migration there is only one adapter in classpath and therefore no configuration is required. Once you prepare for migration by adding another adapter, some  Spring Boot properties have to be set. The settings are validated at startup and violations will be reported and abort launch.
 
-**Setting adapters for a specific workflow:**
+**Setting adapters for a specific workflow-module `ride`:**
 
 ```yaml
 vanillabp:
-  workflows:
-    - bpmn-process-id: DemoWorkflow
-      adapter: camunda8, camunda7
+  workflow-modules:
+    ride:
+      default-adapter: camunda8, camunda7
 ```
 
-*Hint:* The adapters are used in the order of appearance. Additionally, the first adapter is used to start new workflows.
+*Hint:* The adapters are used in the order of their appearance in `default-adapter`. Additionally, the first adapter is used to start new workflows.
 
-**Setting adapters for a specific workflow which is part of a workflow-module:**
+**Setting adapters for a specific workflow having BPMN process ID `Ride`:**
 
 ```yaml
 vanillabp:
-  workflows:
-    - bpmn-process-id: DemoWorkflow
-      workflow-module-id: Demo
-      adapter: camunda8, camunda7
+  workflow-modules:
+    ride:
+      workflows:
+        Ride:
+          default-adapter: camunda8, camunda7
 ```
 
-**Setting adapters for a all not explicitly specified workflows:**
+**Setting adapters for all, not explicitly specified workflows:**
 
 ```yaml
 vanillabp:
   default-adapter: camunda8, camunda7
-  workflows:
+  workflow-modules:
     ...
 ```
 
@@ -239,19 +263,23 @@ Sometimes it is fine to not migrate a workflow (e.g. it will be retired soon). I
 ```yaml
 vanillabp:
   default-adapter: camunda8, camunda7
-  workflows:
-    - bpmn-process-id: DemoWorkflow
-      adapter: camunda7
+  workflow-modules:
+    ride:
+      workflows:
+        Ride:
+          default-adapter: camunda7
 ```
 
-Using this technique it is also possible to limit migration to specific workflows only:
+Using this technique, it is also possible to limit migration to specific workflows only:
 
 ```yaml
 vanillabp:
   default-adapter: camunda7
-  workflows:
-    - bpmn-process-id: DemoWorkflow
-      adapter: camunda8, camunda7
+  workflow-modules:
+    ride:
+      workflows:
+        Ride:
+          default-adapter: camunda8, camunda7
 ```
 
 ## Noteworthy & Contributors
