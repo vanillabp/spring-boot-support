@@ -126,7 +126,10 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         
         final var em = jpaContext
                 .getEntityManagerByManagedType(entityClass);
-        return em.contains(entity);
+        if (em.contains(entity)) {
+            return true;
+        }
+        return em.find(entityClass, getId(entity)) != null;
 
     }
     
