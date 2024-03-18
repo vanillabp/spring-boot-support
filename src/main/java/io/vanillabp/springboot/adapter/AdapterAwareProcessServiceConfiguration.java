@@ -63,6 +63,10 @@ public class AdapterAwareProcessServiceConfiguration {
                 .stream()
                 .map(AdapterConfigurationBase::getAdapterId)
                 .toList();
+        if (properties.getDefaultAdapter().isEmpty()
+                && (adapterIds.size() == 1)) {
+            properties.setDefaultAdapter(adapterIds);
+        }
 
         properties.validateProperties(adapterIds, workflowModuleIds);
 

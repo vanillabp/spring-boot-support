@@ -34,7 +34,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
 
     private final Map<String, ProcessServiceImplementation<DE>> processServicesByAdapter;
 
-    private final List<String> wiredAdapterIds = new LinkedList<>();
+    private final Set<String> wiredAdapterIds = new HashSet<>();
 
     private String workflowModuleId;
 
@@ -177,7 +177,7 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
         wiredAdapterIds.add(adapterId);
         if (wiredAdapterIds.size() == processServicesByAdapter.size()) { // all adapters wired for this service
             properties.validatePropertiesFor(
-                    wiredAdapterIds,
+                    new LinkedList<>(wiredAdapterIds),
                     workflowModuleId,
                     bpmnProcessId);
         }

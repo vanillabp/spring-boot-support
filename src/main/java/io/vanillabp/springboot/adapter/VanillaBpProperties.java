@@ -185,48 +185,42 @@ public class VanillaBpProperties {
             final String workflowModuleId,
             final String bpmnProcessId) {
 
-        // default-adapter
-        if (adapterIds.size() == 1) {
-            setDefaultAdapter(adapterIds);
-        } else {
-            final var defaultAdapters = getDefaultAdapterFor(workflowModuleId, bpmnProcessId);
-            if (defaultAdapters.isEmpty()) {
-                throw new RuntimeException(
-                        "More than one VanillaBP adapter was found in classpath, but no default adapter is configured at\n  "
-                                + PREFIX
-                                + ".workflow-modules."
-                                + workflowModuleId
-                                + ".workflows."
-                                + bpmnProcessId
-                                + ".default-adapter or \n  "
-                                + PREFIX
-                                + ".workflow-modules."
-                                + workflowModuleId
-                                + ".default-adapter or \n  "
-                                + PREFIX
-                                + ".default-adapter\nAvailable adapters are '"
-                                + String.join("', '", adapterIds)
-                                + "'.");
-            }
+        final var defaultAdapters = getDefaultAdapterFor(workflowModuleId, bpmnProcessId);
+        if (defaultAdapters.isEmpty()) {
+            throw new RuntimeException(
+                    "More than one VanillaBP adapter was found in classpath, but no default adapter is configured at\n  "
+                            + PREFIX
+                            + ".workflow-modules."
+                            + workflowModuleId
+                            + ".workflows."
+                            + bpmnProcessId
+                            + ".default-adapter or \n  "
+                            + PREFIX
+                            + ".workflow-modules."
+                            + workflowModuleId
+                            + ".default-adapter or \n  "
+                            + PREFIX
+                            + ".default-adapter\nAvailable adapters are '"
+                            + String.join("', '", adapterIds)
+                            + "'.");
+        }
 
-            final var listOfAdapters = String.join("', '", adapterIds);
-            final var missingAdapters = defaultAdapters
-                    .stream()
-                    .filter(defaultAdapter -> !adapterIds.contains(defaultAdapter))
-                    .collect(Collectors.joining("', '"));
-            if (!missingAdapters.isEmpty()) {
-                throw new RuntimeException(
-                        "Property 'default-adapter' of workflow-module '"
-                        + workflowModuleId
-                        + "' and bpmn-process-id '"
-                        + bpmnProcessId
-                        + "' contains adapters not available in classpath:\n'  "
-                        + missingAdapters
-                        + "'!\nAvailable adapters are: '"
-                        + listOfAdapters
-                        + "'.");
-            }
-
+        final var listOfAdapters = String.join("', '", adapterIds);
+        final var missingAdapters = defaultAdapters
+                .stream()
+                .filter(defaultAdapter -> !adapterIds.contains(defaultAdapter))
+                .collect(Collectors.joining("', '"));
+        if (!missingAdapters.isEmpty()) {
+            throw new RuntimeException(
+                    "Property 'default-adapter' of workflow-module '"
+                    + workflowModuleId
+                    + "' and bpmn-process-id '"
+                    + bpmnProcessId
+                    + "' contains adapters not available in classpath:\n'  "
+                    + missingAdapters
+                    + "'!\nAvailable adapters are: '"
+                    + listOfAdapters
+                    + "'.");
         }
 
     }
