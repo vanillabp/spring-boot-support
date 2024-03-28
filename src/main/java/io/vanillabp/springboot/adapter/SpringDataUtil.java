@@ -34,11 +34,19 @@ public interface SpringDataUtil {
      * @see Id
      */
     <I> I getId(Object entity);
+
+    /**
+     * Determine the entity's object identifier's parameter name.
+     *
+     * @param type The given entity's type.
+     * @return The entity's object identifier's parameter name.
+     */
+    String getIdName(Class<?> type);
     
     /**
      * Determine the entity's object identifier's type.
      * 
-     * @param The given entity's type.
+     * @param type The given entity's type.
      * @return The entity's object identifier's type.
      */
     Class<?> getIdType(Class<?> type);

@@ -1,6 +1,7 @@
 package io.vanillabp.springboot.utils;
 
 import io.vanillabp.springboot.adapter.SpringDataUtil;
+import jakarta.persistence.Id;
 import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.jpa.repository.JpaContext;
@@ -9,6 +10,8 @@ import org.springframework.data.repository.core.EntityInformation;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -103,7 +106,22 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         return entityInfo.getIdType();
         
     }
-    
+
+    public String getIdName(Class<?> type){
+        // TODO: get fields from parents, also check annotated getter methods
+        return Arrays
+                .stream(type.getDeclaredFields())
+                .filter(this::isIdAnnotationPresent)
+                .findFirst()
+                .map(Field::getName)
+                .orElse(null);
+    }
+
+    private boolean isIdAnnotationPresent(Field field){
+        return field.isAnnotationPresent(Id.class) ||
+                field.isAnnotationPresent(org.springframework.data.annotation.Id.class);
+    }
+
     @SuppressWarnings("unchecked")
     public <I> I getId(
             final Object domainEntity) {
@@ -118,7 +136,7 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         return (I) id;
         
     }
-    
+
     @Override
     public <O> boolean isPersistedEntity(
             final Class<O> entityClass,
