@@ -56,14 +56,16 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
     protected void configureProfiles(
             final ConfigurableEnvironment environment,
             final String[] args) {
-        
+
         final var activeProfilesSystemProperty = System.getProperty("spring.profiles.active");
+        final var activeProfilesEnvVariable = System.getenv("SPRING_PROFILES_ACTIVE");
 
         // if no profiles configured the add profile 'local' which means the
         // developer's local runtime environment used to develop and test the application
         if ((environment.getActiveProfiles().length == 0)
-                && !StringUtils.hasText(activeProfilesSystemProperty)) {
-            
+                && !StringUtils.hasText(activeProfilesSystemProperty)
+                && !StringUtils.hasText(activeProfilesEnvVariable)) {
+
             // as part of the blueprint building simulation-services
             // to simulate bounded systems for local development or integration
             // testing is recommended. Therefore, the profiles specific to the
@@ -72,10 +74,12 @@ public class ModuleAndWorkerAwareSpringApplication extends SpringApplication {
 
             // set development profile 'local'
             environment.addActiveProfile("local");
-            
+
         }
 
-        final var activeProfiles = retrieveAndUpdateActiveProfiles(activeProfilesSystemProperty, environment);
+        final var activeProfiles = retrieveAndUpdateActiveProfiles(
+                StringUtils.hasText(activeProfilesSystemProperty) ? activeProfilesSystemProperty : activeProfilesEnvVariable,
+                environment);
 
         // add worker-id property
         environment
