@@ -11,4 +11,6 @@ public interface ProcessServiceImplementation<DE> extends ProcessService<DE> {
     
     void setParent(AdapterAwareProcessService<DE> parent);
 
+    String getPrimaryBpmnProcessId();
+
 }

@@ -22,6 +22,7 @@ public class TaxiApplication {
 
 1. [Worker ID](#worker-id)
 1. [Workflow modules](#workflow-modules)
+2. [Logging](#logging)
 1. [Spring boot profiles](#spring-boot-profiles)
 1. [Migrating from one BPM system to another](#migrating-from-one-bpm-system-to-another)
 1. [Noteworthy & Contributors](#noteworthy--contributors)
@@ -128,6 +129,28 @@ vanillabp:
 Therefore, on migrating workflows from one engine to another, the BPMN files have to be copied and changed
 according to new engine used. Having this in mind one should also define a resources location specific to the current engine used,
 even if there are no plans to migrate to any other engine yet (see sample above).
+
+## Logging
+
+All VanillaBP adapter implementations use `Slf4J` as a logging-framework wrapper. According to the current
+action (running a method annotated by `@WorkflowTask` or a method of `ProcessService` called) MDCs are setting
+using the keys defined in class `io.vanillabp.springboot.adapter.LoggingContext`:
+
+* The current workflow module's ID.
+* The current VanillaBP adapter's ID.
+* The current aggregate's ID - may be null if not yet filled by the database for auto-increments.
+* The current workflow's BPMN process ID ("id" attribute of BPMN "process" tag)
+  regardless whether the current action belongs to a call-activity's BPMN task. Secondary BPMN process IDs
+  are not available for logging (see [Call-activities](https://github.com/vanillabp/spi-for-java#call-activities))</a>.
+* The current workflow's ID, specific to underlying BPM system (aka process instance ID) - if already known by the adapter.
+* The current workflow task's ID.
+* The current workflow task's BPMN node ("id" attribute of the BPMN XML tag in combination with the BPMN process ID the task belongs to - e.g. "MyProcess#MyTask").
+* The current workflow task's BPMN node ID (aka flow node instance ID).
+
+However, if those values
+are needed without using `Slf4J` then you can use the `LoggingContext`'s static class methods to retrieve them. 
+
+*Hint:* Adapters may add additional logging context. Checkout their README.md for details.
 
 ## Spring boot profiles
 
