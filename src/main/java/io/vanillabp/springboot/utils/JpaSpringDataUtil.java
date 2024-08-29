@@ -2,6 +2,11 @@ package io.vanillabp.springboot.utils;
 
 import io.vanillabp.springboot.adapter.SpringDataUtil;
 import jakarta.persistence.Id;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.jpa.repository.JpaContext;
@@ -9,12 +14,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.core.EntityInformation;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
-
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 public class JpaSpringDataUtil implements SpringDataUtil {
 
@@ -147,7 +146,11 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         if (em.contains(entity)) {
             return true;
         }
-        return em.find(entityClass, getId(entity)) != null;
+        final var id = getId(entity);
+        if (id == null) {
+            return false;
+        }
+        return em.find(entityClass, id) != null;
 
     }
     
