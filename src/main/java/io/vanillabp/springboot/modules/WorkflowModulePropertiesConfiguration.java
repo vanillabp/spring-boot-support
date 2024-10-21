@@ -1,6 +1,8 @@
 package io.vanillabp.springboot.modules;
 
 import io.vanillabp.springboot.utils.CaseUtils;
+import java.util.LinkedList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
@@ -13,9 +15,6 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-
-import java.util.LinkedList;
-import java.util.List;
 
 @AutoConfigurationPackage
 @AutoConfigureBefore(PropertyPlaceholderAutoConfiguration.class)
@@ -68,10 +67,11 @@ public class WorkflowModulePropertiesConfiguration {
 
     private static boolean addYaml(
             final LinkedList<Resource> resources,
-            final String filename) {
-        
+            final String directory,
+            final String formatedWorkflowModuleId) {
+
         final var defaultsYaml = new ClassPathResource(
-                "/config/" + filename + ".yaml");
+                directory + formatedWorkflowModuleId + ".yaml");
         if (defaultsYaml.exists()) {
             logger.debug("Adding yaml-file: {}", defaultsYaml.getDescription());
             resources.add(defaultsYaml);
@@ -79,7 +79,7 @@ public class WorkflowModulePropertiesConfiguration {
         }
         
         final var defaultsYml = new ClassPathResource(
-                "/config/" + filename + ".yml");
+                directory + formatedWorkflowModuleId + ".yml");
         if (defaultsYml.exists()) {
             logger.debug("Adding yaml-file: {}", defaultsYml.getDescription());
             resources.add(defaultsYml);
@@ -88,6 +88,26 @@ public class WorkflowModulePropertiesConfiguration {
         
         return false;
         
+    }
+
+    private static boolean addYaml(
+            final LinkedList<Resource> resources,
+            final String formatedWorkflowModuleId) {
+
+        if (addYaml(resources, "", formatedWorkflowModuleId)) {
+            return true;
+        }
+        if (addYaml(resources, "config/", formatedWorkflowModuleId)) {
+            return true;
+        }
+        if (addYaml(resources, formatedWorkflowModuleId + "/", formatedWorkflowModuleId)) {
+            return true;
+        }
+        if (addYaml(resources, formatedWorkflowModuleId + "/config/", formatedWorkflowModuleId)) {
+            return true;
+        }
+        return false;
+
     }
 
 }
