@@ -13,11 +13,6 @@ import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MethodParameterFactory;
 import io.vanillabp.springboot.utils.MutableStream;
 import io.vanillabp.springboot.utils.TriFunction;
-import org.springframework.aop.support.AopUtils;
-import org.springframework.context.ApplicationContext;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.StringUtils;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -30,6 +25,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.context.ApplicationContext;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.StringUtils;
 
 public abstract class AbstractTaskWiring<T extends Connectable, A extends Annotation, M extends MethodParameterFactory> {
 
@@ -90,19 +89,16 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                 .forEach(m -> connect.connect(bean, m.getKey(), m.getValue()));
         
     }
-    
-    protected boolean methodMatchesTaskDefinition(
+
+    protected abstract boolean methodMatchesElementId(
             final T connectable,
             final Method method,
-            final A annotation) {
-        
-        if (!StringUtils.hasText(connectable.getTaskDefinition())) {
-            return false;
-        }
+            final A annotation);
 
-        return false;
-        
-    }
+    protected abstract boolean methodMatchesTaskDefinition(
+            final T connectable,
+            final Method method,
+            final A annotation);
     
     protected boolean wireTask(
             final T connectable,
@@ -203,20 +199,7 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
         return ClassUtils.getUserClass(bean);
         
     }
-    
-    protected boolean methodMatchesElementId(
-            final T connectable,
-            final Method method,
-            final A annotation) {
-        
-        if (method.getName().equals(connectable.getElementId())) {
-            return true;
-        }
 
-        return false;
-        
-    }
-    
     protected List<MethodParameter> validateParameters(
             final Method method,
             @SuppressWarnings("unchecked") final TriFunction<Method, Parameter, Integer, MethodParameter>... map) {

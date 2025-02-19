@@ -6,12 +6,11 @@ import io.vanillabp.spi.service.WorkflowTask;
 import io.vanillabp.springboot.adapter.wiring.AbstractTaskWiring;
 import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MethodParameterFactory;
-import org.springframework.context.ApplicationContext;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.context.ApplicationContext;
 
 public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessServiceImplementation<?>, M extends MethodParameterFactory>
         extends AbstractTaskWiring<T, WorkflowTask, M> {
@@ -75,14 +74,36 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
             T connectable,
             Method method,
             List<MethodParameter> parameters);
-    
+
+    protected boolean methodMatchesElementId(
+            final T connectable,
+            final Method method,
+            final WorkflowTask annotation) {
+
+        if (!annotation.taskDefinition().equals(WorkflowTask.USE_METHOD_NAME)) {
+            return false;
+        }
+
+        if (annotation.id().equals(WorkflowTask.USE_METHOD_NAME)
+                && method.getName().equals(connectable.getElementId())) {
+            return true;
+        }
+
+        if (annotation.id().equals(connectable.getElementId())) {
+            return true;
+        }
+
+        return false;
+
+    }
+
     protected boolean methodMatchesTaskDefinition(
             final T connectable,
             final Method method,
             final WorkflowTask annotation) {
-        
-        if (super.methodMatchesTaskDefinition(connectable, method, annotation)) {
-            return true;
+
+        if (!annotation.id().equals(WorkflowTask.USE_METHOD_NAME)) {
+            return false;
         }
 
         if (annotation.taskDefinition().equals(WorkflowTask.USE_METHOD_NAME)

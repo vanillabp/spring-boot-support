@@ -3,6 +3,11 @@ package io.vanillabp.springboot.adapter;
 import io.vanillabp.spi.process.ProcessService;
 import io.vanillabp.springboot.modules.WorkflowModuleProperties;
 import jakarta.annotation.PostConstruct;
+import java.lang.reflect.ParameterizedType;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InjectionPoint;
@@ -13,12 +18,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Scope;
-
-import java.lang.reflect.ParameterizedType;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @EnableConfigurationProperties(VanillaBpProperties.class)
 public class AdapterAwareProcessServiceConfiguration {
@@ -36,7 +35,7 @@ public class AdapterAwareProcessServiceConfiguration {
     @Autowired(required = false)
     private List<WorkflowModuleProperties> moduleProperties;
 
-    @Autowired
+    @Autowired(required = false)
     private List<AdapterConfigurationBase<?>> adapterConfigurations;
     
     @Bean
@@ -49,7 +48,7 @@ public class AdapterAwareProcessServiceConfiguration {
     @PostConstruct
     public void validateConfiguration() {
 
-        if (adapterConfigurations.isEmpty()) {
+        if ((adapterConfigurations == null) || adapterConfigurations.isEmpty()) {
             throw new RuntimeException(
                     "No VanillaBP adapter was found in classpath!");
         }
