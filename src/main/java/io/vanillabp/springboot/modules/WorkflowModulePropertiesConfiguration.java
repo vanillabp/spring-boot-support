@@ -35,18 +35,19 @@ public class WorkflowModulePropertiesConfiguration {
         for (final var module : modules) {
             
             // add e.g. taxiRide.yml or taxiRide.yaml
-            if (!addYaml(resources, module.getWorkflowModuleId())) {
+            if (!addYaml(resources, module.getWorkflowModuleId(), module.getWorkflowModuleId())) {
                 // or taxi-ride.yml or taxi-ride.yaml
-                addYaml(resources,
+                addYaml(resources, module.getWorkflowModuleId(),
                         CaseUtils.camelToKebap(module.getWorkflowModuleId()));
             }
 
             for (final var profile : environment.getActiveProfiles()) {
 
                 // add e.g. taxiRide-local.yml or taxiRide-local.yaml
-                if (!addYaml(resources, module.getWorkflowModuleId() + "-" + profile)) {
+                if (!addYaml(resources, module.getWorkflowModuleId(),
+                        module.getWorkflowModuleId() + "-" + profile)) {
                     // or taxi-ride-local.yml or taxi-ride-local.yaml
-                    addYaml(resources,
+                    addYaml(resources, module.getWorkflowModuleId(),
                             CaseUtils.camelToKebap(module.getWorkflowModuleId()) + "-" + profile);
                 }
 
@@ -67,11 +68,10 @@ public class WorkflowModulePropertiesConfiguration {
 
     private static boolean addYaml(
             final LinkedList<Resource> resources,
-            final String directory,
-            final String formatedWorkflowModuleId) {
+            final String pathAndFilename) {
 
         final var defaultsYaml = new ClassPathResource(
-                directory + formatedWorkflowModuleId + ".yaml");
+                pathAndFilename + ".yaml");
         if (defaultsYaml.exists()) {
             logger.debug("Adding yaml-file: {}", defaultsYaml.getDescription());
             resources.add(defaultsYaml);
@@ -79,7 +79,7 @@ public class WorkflowModulePropertiesConfiguration {
         }
         
         final var defaultsYml = new ClassPathResource(
-                directory + formatedWorkflowModuleId + ".yml");
+                pathAndFilename + ".yml");
         if (defaultsYml.exists()) {
             logger.debug("Adding yaml-file: {}", defaultsYml.getDescription());
             resources.add(defaultsYml);
@@ -92,18 +92,19 @@ public class WorkflowModulePropertiesConfiguration {
 
     private static boolean addYaml(
             final LinkedList<Resource> resources,
-            final String formatedWorkflowModuleId) {
+            final String directory,
+            final String formattedWorkflowModuleIdWithProfile) {
 
-        if (addYaml(resources, "", formatedWorkflowModuleId)) {
+        if (addYaml(resources, formattedWorkflowModuleIdWithProfile)) {
             return true;
         }
-        if (addYaml(resources, "config/", formatedWorkflowModuleId)) {
+        if (addYaml(resources, "config/" + formattedWorkflowModuleIdWithProfile)) {
             return true;
         }
-        if (addYaml(resources, formatedWorkflowModuleId + "/", formatedWorkflowModuleId)) {
+        if (addYaml(resources, directory + "/" + formattedWorkflowModuleIdWithProfile)) {
             return true;
         }
-        if (addYaml(resources, formatedWorkflowModuleId + "/config/", formatedWorkflowModuleId)) {
+        if (addYaml(resources, directory + "/config/" + formattedWorkflowModuleIdWithProfile)) {
             return true;
         }
         return false;

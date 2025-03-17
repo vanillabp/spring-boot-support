@@ -13,6 +13,8 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 @ConditionalOnMissingBean(SpringDataUtil.class)
 public class JpaSpringDataUtilConfiguration {
 
+    public static final String BEANNAME_SPRINGDATAUTIL = "jpaSpringDataUtil";
+
     @Autowired
     private ApplicationContext applicationContext;
 
@@ -22,7 +24,7 @@ public class JpaSpringDataUtilConfiguration {
     @Autowired
     private JpaContext jpaContext;
     
-    @Bean
+    @Bean(name = BEANNAME_SPRINGDATAUTIL)
     public SpringDataUtil jpaSpringDataUtil() {
        
         return new JpaSpringDataUtil(
