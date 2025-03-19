@@ -22,8 +22,11 @@ public class TaxiApplication {
 
 1. [Worker ID](#worker-id)
 1. [Workflow modules](#workflow-modules)
-2. [Logging](#logging)
+1. [Logging](#logging)
 1. [Spring boot profiles](#spring-boot-profiles)
+1. [Workflow aggregate persistence](#workflow-aggregate-persistence)
+   1. [JPA](#jpa)
+   1. [MongoDB](#mongodb)
 1. [Migrating from one BPM system to another](#migrating-from-one-bpm-system-to-another)
 1. [Noteworthy & Contributors](#noteworthy--contributors)
 1. [License](#license)
@@ -214,7 +217,105 @@ There are two profiles "local" and "simulation" which are treated in a special w
 
 *simulation* is the feature-switch profile to use simulated external systems instead of accessing real APIs. It is activated per default next to the *local* profile, if no profile is defined. A "simulation" is an additional Spring Boot container you can build which implements the interfaces of all external systems (e.g. REST-APIs, embedded LDAP instead of ActiveDirectory, embedded Kafka, etc.) to be used for local development as well as for running integration tests as part of the build.
 
-### Migrating from one BPM system to another
+## Workflow aggregate persistence
+
+Adapters implementing the [VanillaBP SPI](https://github.com/vanillabp/spi-for-java)
+need to load and save workflow aggregates (see
+[Process specific workflow aggregate](https://github.com/vanillabp/spi-for-java#process-specific-workflow-aggregate)).
+This is done by using a [Spring Data repositories](https://docs.spring.io/spring-data/jpa/reference/repositories/definition.html)
+which have to be provided by the process application.
+
+Since repositories are not bound to a certain persistence technology one can
+use other databases then RDBMS as well. Besides the functionality repositories provide
+([CRUD](https://docs.spring.io/spring-data/commons/docs/current/api/org/springframework/data/repository/CrudRepository.html))
+some additional support is needed which has to be provided by a Spring Bean implementing the interface
+[SpringDataUtil](https://github.com/vanillabp/spring-boot-support/blob/main/src/main/java/io/vanillabp/springboot/adapter/SpringDataUtil.java).
+
+SpringDataUtil is provided by the `spring-data-support` module for these 
+persistence technologies:
+
+1. [JPA](#JPA)
+1. [MongoDB](#MongoDB)
+
+*Hint:* Checkout the documentation of the [adapter(s) used](https://github.com/vanillabp#available-adapters)
+whether additional Spring Boot configuration is required specific to persistence technology used.
+
+### JPA
+
+This is the default persistence technology. Use this dependency
+
+```xml
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+```
+
+configure the database connection and define a workflow aggregate as shown in the
+[examples]([Process specific workflow aggregate](https://github.com/vanillabp/spi-for-java#process-specific-workflow-aggregate))
+and [blueprints](https://github.com/vanillabp#blueprints).
+
+### MongoDB
+
+To use MongoDB for aggregate persistence use this dependency
+
+```xml
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-data-mongodb</artifactId>
+</dependency>
+```
+
+configure the database connection and define a workflow aggregate and its repository using
+Spring Data MongoDB annotations:
+
+```java
+@org.springframework.data.mongodb.core.mapping.Document(collection = "RIDE")
+@Getter
+@Setter
+public class Ride {
+   @org.springframework.data.annotation.Id
+   private String rideId; // see section "Natural ids"
+   private OffsetDateTime pickupTime;
+   private String pickupLocation;
+   private String targetLocation;
+   private boolean customerCharged;
+}
+```
+
+```java
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+public interface RideRepository extends MongoRepository<Aggregate, String> {
+}
+```
+
+Finally, the SpringDataUtil for MongoDB and the (recommended) transaction support has to be configured:
+
+```java
+@Configuration
+public class MongoDbSpringDataUtilConfiguration {
+    @Bean
+    public MongoTransactionManager transactionManager(
+            final MongoDatabaseFactory dbFactory) {
+
+        return new MongoTransactionManager(dbFactory);
+
+    }
+
+    @Bean
+    public MongoDbSpringDataUtil mongoDbSpringDataUtil(
+            final ApplicationContext applicationContext,
+            final MongoDatabaseFactory mongoDbFactory,
+            @Nullable final MongoConverter mongoConverter) {
+
+        return new MongoDbSpringDataUtil(applicationContext, mongoDbFactory, mongoConverter);
+
+    }
+}
+```
+
+## Migrating from one BPM system to another
 
 In some situations one might want to migrate from one BPM system to another. This is supported by VanillaBP since adapters are meant to live in Java-classpath next to each other.
 
