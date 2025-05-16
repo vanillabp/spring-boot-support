@@ -3,10 +3,11 @@ package io.vanillabp.springboot.utils;
 import io.vanillabp.springboot.adapter.SpringDataUtil;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.jpa.repository.JpaContext;
@@ -106,14 +107,25 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         
     }
 
-    public String getIdName(Class<?> type){
-        // TODO: get fields from parents, also check annotated getter methods
-        return Arrays
-                .stream(type.getDeclaredFields())
+    private Class<?> getSuperclass(
+            final Class<?> cls) {
+
+        return cls.getSuperclass();
+
+    }
+
+    public String getIdName(
+            final Class<?> type) {
+
+        // TODO: also check annotated getter methods
+        return Stream
+                .iterate(type, Objects::nonNull, this::getSuperclass)
+                .flatMap(c -> Stream.of(c.getDeclaredFields()))
                 .filter(this::isIdAnnotationPresent)
                 .findFirst()
                 .map(Field::getName)
                 .orElse(null);
+
     }
 
     private boolean isIdAnnotationPresent(Field field){
