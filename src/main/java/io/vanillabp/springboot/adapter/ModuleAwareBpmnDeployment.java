@@ -1,15 +1,15 @@
 package io.vanillabp.springboot.adapter;
 
 import io.vanillabp.springboot.modules.WorkflowModuleProperties;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.util.StringUtils;
-
-import java.io.IOException;
-import java.util.List;
 
 public abstract class ModuleAwareBpmnDeployment {
 
@@ -35,11 +35,24 @@ public abstract class ModuleAwareBpmnDeployment {
 
     protected void deployAllWorkflowModules() {
 
+        deploySelectedWorkflowModules(
+                moduleProperties == null
+                        ? List.of()
+                        : moduleProperties.stream().map(WorkflowModuleProperties::getWorkflowModuleId).toList());
+
+    }
+
+    protected void deploySelectedWorkflowModules(
+            final Collection<String> workflowModuleIds) {
+
         final var hasExplicitDefinedWorkflowModules = (moduleProperties != null)
                 && !moduleProperties.isEmpty();
 
         if (hasExplicitDefinedWorkflowModules) {
-            moduleProperties.forEach(this::deployWorkflowModule);
+            moduleProperties
+                    .stream()
+                    .filter(module -> workflowModuleIds.contains(module.getWorkflowModuleId()))
+                    .forEach(this::deployWorkflowModule);
             return;
         }
 
