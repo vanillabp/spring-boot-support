@@ -89,7 +89,7 @@ jobs:
         run: |
           mvn versions:set -DnewVersion=${{ github.event.inputs.next_snapshot }}
           find . -name pom.xml.versionsBackup -delete
-          mvn -B -DskipTests -DskipITs package -Punpublish-npm
+          mvn -B -DskipTests -DskipITs package
 
       - name: Commit next snapshot version
         run: |
