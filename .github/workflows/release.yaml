@@ -32,6 +32,10 @@ jobs:
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
+      - name: Debug Maven settings
+        run: |
+          cat ~/.m2/settings.xml
+
       - name: Create release branch
         run: |
           git checkout -b release/${{ github.event.inputs.release_version }} origin/main
