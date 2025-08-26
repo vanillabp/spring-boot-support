@@ -32,10 +32,6 @@ jobs:
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
-      - name: Debug Maven settings
-        run: |
-          cat ~/.m2/settings.xml
-
       - name: Create release branch
         run: |
           git checkout -b release/${{ github.event.inputs.release_version }} origin/main
@@ -61,7 +57,7 @@ jobs:
       - name: Build & deploy to Maven Central
         run: |
           mvn -DskipTests -DskipITs -Dgpg.passphrase=$GPG_PASSPHRASE \
-          clean deploy -P release,central-portal
+          clean deploy -P release,central-portal -X
         env:
           GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
@@ -85,10 +81,8 @@ jobs:
           body: |
             Automated release for version ${{ github.event.inputs.release_version }}.
               - Published to Maven Central
-              - Published to npm
-              - Built runnable JARs included
           files: |
-            **/*-runnable.jar
+            **/*.jar
           draft: true
 
       - name: Set next snapshot version
