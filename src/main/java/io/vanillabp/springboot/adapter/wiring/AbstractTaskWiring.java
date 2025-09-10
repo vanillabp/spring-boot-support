@@ -143,6 +143,8 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                             : "element-id '" + connectable.getElementId())
                     + "' of process '"
                     + connectable.getBpmnProcessId()
+                    + "' of version '"
+                    + connectable.getVersionInfo()
                     + "': "
                     + matching);
         }
@@ -161,6 +163,8 @@ public abstract class AbstractTaskWiring<T extends Connectable, A extends Annota
                             : "no task-definition but element-id '" + connectable.getElementId())
                     + "' of process '"
                     + connectable.getBpmnProcessId()
+                    + "' of version '"
+                    + connectable.getVersionInfo()
                     + "'. Tested for: "
                     + tested);
         }

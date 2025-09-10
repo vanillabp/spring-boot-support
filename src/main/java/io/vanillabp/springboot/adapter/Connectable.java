@@ -4,6 +4,8 @@ public interface Connectable {
 
     String getBpmnProcessId();
 
+    String getVersionInfo();
+
     boolean isExecutableProcess();
 
     String getTaskDefinition();

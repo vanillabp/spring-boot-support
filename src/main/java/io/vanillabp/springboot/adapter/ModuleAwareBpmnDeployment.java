@@ -3,7 +3,9 @@ package io.vanillabp.springboot.adapter;
 import io.vanillabp.springboot.modules.WorkflowModuleProperties;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -16,7 +18,9 @@ public abstract class ModuleAwareBpmnDeployment {
     protected abstract Logger getLogger();
     
     protected abstract String getAdapterId();
-    
+
+    protected static Map<String, Map.Entry<String, Object>> bpmnModelCache = new HashMap<>();
+
     private final VanillaBpProperties properties;
 
     private final String applicationName;
