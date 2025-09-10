@@ -6,6 +6,7 @@ import io.vanillabp.spi.service.WorkflowTask;
 import io.vanillabp.springboot.adapter.wiring.AbstractTaskWiring;
 import io.vanillabp.springboot.parameters.MethodParameter;
 import io.vanillabp.springboot.parameters.MethodParameterFactory;
+import java.lang.reflect.MalformedParametersException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Collection;
@@ -157,6 +158,16 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
         if (userTaskIdAnnotation == null) {
             return null;
         }
+        if (!parameter.getType().equals(String.class)) {
+            throw new MalformedParametersException(
+                    "Parameters having annotation @"
+                    + TaskId.class.getName()
+                    + " must be of type String: "
+                    + method.toString()
+                    + "["
+                    + index
+                    + "]!");
+        }
 
         return methodParameterFactory.getTaskIdParameter(
                 index,
@@ -172,6 +183,18 @@ public abstract class TaskWiringBase<T extends Connectable, PS extends ProcessSe
         final var userTaskEventAnnotation = parameter.getAnnotation(TaskEvent.class);
         if (userTaskEventAnnotation == null) {
             return null;
+        }
+        if (!parameter.getType().equals(TaskEvent.Event.class)) {
+            throw new MalformedParametersException(
+                    "Parameters having annotation @"
+                    + TaskEvent.class.getName()
+                    + " must be of type "
+                    + TaskEvent.Event.class.getName()
+                    + ": "
+                    + method.toString()
+                    + "["
+                    + index
+                    + "]!");
         }
 
         return methodParameterFactory
