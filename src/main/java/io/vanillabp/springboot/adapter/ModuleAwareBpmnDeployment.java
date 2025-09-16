@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEvent;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -15,11 +16,45 @@ import org.springframework.util.StringUtils;
 
 public abstract class ModuleAwareBpmnDeployment {
 
+    /**
+     * Meant to be published after deployment of models
+     */
+    public static class BpmnModelCacheProcessed extends ApplicationEvent {
+
+        private final String workflowModuleId;
+        private final List<Map.Entry<String, String>> processedDeployed;
+
+        public BpmnModelCacheProcessed(
+                final Object source,
+                final String workflowModuleId,
+                final List<Map.Entry<String, String>> processedDeployed) {
+            super(source);
+            this.workflowModuleId = workflowModuleId;
+            this.processedDeployed = processedDeployed;
+        }
+
+        public String getWorkflowModuleId() {
+            return workflowModuleId;
+        }
+
+        /**
+         * @return key = bpmnProcessId, value = versionInfo
+         */
+        public List<Map.Entry<String, String>> getProcessedDeployed() {
+            return processedDeployed;
+        }
+
+    }
+
     protected abstract Logger getLogger();
     
     protected abstract String getAdapterId();
 
-    protected static Map<String, Map.Entry<String, Object>> bpmnModelCache = new HashMap<>();
+    // used to cache models which may be adopted by multiple adapters and deployed once the application started
+    // key: workflow module ID, value entry of filename (key) and model (value)
+    protected static final Map<String, Map.Entry<String, Object>> bpmnModelCache = new HashMap<>();
+    // used to store properties which may be retrieved by multiple adapters to implement cross-cutting concerns
+    protected static final Map<String, Object> adapterProperties = new HashMap<>();
 
     private final VanillaBpProperties properties;
 
