@@ -1,10 +1,11 @@
 package io.vanillabp.springboot.adapter;
 
+import io.vanillabp.spi.process.ProcessDefinition;
+import io.vanillabp.spi.process.ProcessDefinitionNotFoundException;
 import io.vanillabp.spi.process.ProcessService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.repository.CrudRepository;
-
+import io.vanillabp.spi.process.WorkflowHistory;
+import io.vanillabp.spi.process.WorkflowNotFoundException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -12,6 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.repository.CrudRepository;
 
 /**
  * A process service which is aware of multiple adapter-specific process services.
@@ -425,5 +429,94 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
                 });
         
     }
-    
+
+    @Override
+    public List<ProcessDefinition> getProcessDefinitions(
+            final DE workflowAggregate,
+            final String historyContext) throws WorkflowNotFoundException {
+
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
+        return getAdapterIds()
+                .stream()
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
+                .map(adapter -> {
+                    try {
+                        return adapter.getValue().getProcessDefinitions(workflowAggregate, historyContext);
+                    } catch (WorkflowNotFoundException e) {
+                        exceptions.add(Map.entry(adapter.getKey(), e));
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.debug(
+                            "Could retrieve process definitions by VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new WorkflowNotFoundException("Workflow not known by any VanillaBP adapter!");
+                });
+
+    }
+
+    @Override
+    public InputStream getBpmnXml(
+            final String processDefinitionId) throws ProcessDefinitionNotFoundException {
+
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
+        return getAdapterIds()
+                .stream()
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
+                .map(adapter -> {
+                    try {
+                        return adapter.getValue().getBpmnXml(processDefinitionId);
+                    } catch (WorkflowNotFoundException e) {
+                        exceptions.add(Map.entry(adapter.getKey(), e));
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.debug(
+                            "Could retrieve the BPMN XML by VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new ProcessDefinitionNotFoundException(
+                            "Process definition "
+                            + processDefinitionId
+                            + "' is not known by any VanillaBP adapter!");
+                });
+
+    }
+
+    @Override
+    public WorkflowHistory getWorkflowHistory(
+            final DE workflowAggregate,
+            final String historyContext) throws WorkflowNotFoundException {
+
+        final var exceptions = new LinkedList<Map.Entry<String, Exception>>();
+        return getAdapterIds()
+                .stream()
+                .map(adapterId -> Map.entry(adapterId, processServicesByAdapter.get(adapterId)))
+                .map(adapter -> {
+                    try {
+                        return adapter.getValue().getWorkflowHistory(workflowAggregate, historyContext);
+                    } catch (WorkflowNotFoundException e) {
+                        exceptions.add(Map.entry(adapter.getKey(), e));
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseThrow(() -> {
+                    exceptions.forEach(e -> logger.debug(
+                            "Could retrieve the workflow's history by VanillaBP adapter '{}'!",
+                            e.getKey(),
+                            e.getValue()));
+                    return new WorkflowNotFoundException("Workflow not known by any VanillaBP adapter!");
+                });
+
+    }
+
 }

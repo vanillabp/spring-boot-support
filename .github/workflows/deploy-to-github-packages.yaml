@@ -17,7 +17,9 @@ jobs:
           distribution: 'adopt'
           cache: 'maven'
       - name: Publish package
-        run: mvn --batch-mode deploy
+        run: mvn --batch-mode -s $GITHUB_WORKSPACE/.github/workflows/github-packages-settings.xml deploy
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: false
+          USER_NAME: ${{ secrets.VANILLABP_USER_NAME }}
+          USER_TOKEN: ${{ secrets.VANILLABP_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
