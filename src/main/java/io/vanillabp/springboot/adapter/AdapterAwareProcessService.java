@@ -213,6 +213,26 @@ public class AdapterAwareProcessService<DE> implements ProcessService<DE> {
 
     }
 
+    public DE startWorkflowByMessage(
+            final DE workflowAggregate,
+            final String messageName) {
+
+        return processServicesByAdapter
+                .get(getPrimaryAdapterId())
+                .startWorkflowByMessage(workflowAggregate, messageName);
+
+    }
+
+    public DE startWorkflowByMessage(
+            final DE workflowAggregate,
+            final Object message) {
+
+        return processServicesByAdapter
+                .get(getPrimaryAdapterId())
+                .startWorkflowByMessage(workflowAggregate, message);
+
+    }
+
     @Override
     public DE correlateMessage(
             final DE workflowAggregate,
