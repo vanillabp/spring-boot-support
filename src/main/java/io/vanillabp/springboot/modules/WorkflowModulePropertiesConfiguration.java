@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
@@ -18,7 +17,6 @@ import org.springframework.core.io.Resource;
 
 @AutoConfigurationPackage
 @AutoConfigureBefore(PropertyPlaceholderAutoConfiguration.class)
-@ConditionalOnBean(WorkflowModuleProperties.class)
 public class WorkflowModulePropertiesConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(WorkflowModulePropertiesConfiguration.class);
