@@ -5,7 +5,7 @@
   <parent>
     <groupId>io.vanillabp</groupId>
     <artifactId>release-parent</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
   </parent>
 
   <artifactId>spring-boot-support</artifactId>
@@ -14,7 +14,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <vanillabp.version>1.1.0-SNAPSHOT</vanillabp.version>
+    <vanillabp.version>1.1.0</vanillabp.version>
     <version.java>17</version.java>
   </properties>
 
