@@ -170,4 +170,9 @@ public class MongoDbSpringDataUtil implements SpringDataUtil {
 
     }
 
+    @Override
+    public void doCleanup() {
+        REPOSITORY_MAP.clear();
+        PERSISTENT_ENTITY_MAP_MAP.clear();
+    }
 }

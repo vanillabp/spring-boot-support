@@ -174,5 +174,10 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         return (O) Hibernate.unproxy(entity);
         
     }
-    
+
+    @Override
+    public void doCleanup() {
+        REPOSITORY_MAP.clear();
+        ENTITYINFO_MAP.clear();
+    }
 }

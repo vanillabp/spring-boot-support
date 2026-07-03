@@ -70,5 +70,9 @@ public interface SpringDataUtil {
      * @return Entity was loaded/persisted from/to DB before
      */
     <O> boolean isPersistedEntity(Class<O> entityClass, O entity);
-    
+
+    /**
+     * Clear all cached state, useful in Spring Boot tests.
+     */
+    void doCleanup();
 }
