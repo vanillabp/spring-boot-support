@@ -1,3 +1,8 @@
+# Deliberately competing value: the workerIdProps property source added by
+# ModuleAndWorkerAwareSpringApplication has to win over this one. See
+# ModuleAndWorkerAwareSpringApplicationBootTest.
+workerId: from-application-yaml
+
 spring:
   application:
     name: support-it

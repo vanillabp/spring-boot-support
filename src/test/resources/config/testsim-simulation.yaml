@@ -1,0 +1,6 @@
+# Exercises the YAML loading path of ModuleAndWorkerAwareSpringApplication:
+# addSimulationProfiles(..) picks up /config/**/*simulation*.y[a]ml, reads the first top level key
+# via SnakeYAML and derives the profile name from the remainder of the file name. So this file
+# activates the profile "simulation", and the top level key has to match the file name prefix.
+testsim:
+  marker: loaded-by-snakeyaml
