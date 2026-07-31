@@ -10,10 +10,10 @@ import io.vanillabp.springboot.adapter.ProcessServiceImplementation;
 import io.vanillabp.springboot.adapter.SpringDataUtil;
 import java.util.Map;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
-import org.springframework.boot.autoconfigure.data.mongo.MongoReactiveDataAutoConfiguration;
-import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
-import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration;
+import org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration;
+import org.springframework.boot.data.mongodb.autoconfigure.DataMongoReactiveAutoConfiguration;
+import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
+import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.repository.CrudRepository;
 
@@ -34,9 +34,9 @@ import org.springframework.data.repository.CrudRepository;
  */
 @SpringBootApplication(exclude = {
         MongoAutoConfiguration.class,
-        MongoDataAutoConfiguration.class,
         MongoReactiveAutoConfiguration.class,
-        MongoReactiveDataAutoConfiguration.class })
+        DataMongoAutoConfiguration.class,
+        DataMongoReactiveAutoConfiguration.class })
 public class TestApplication {
 
     public static final String ADAPTER_ID = "test-adapter";

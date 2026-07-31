@@ -39,21 +39,22 @@ class JpaSpringDataUtilConfigurationTest {
     }
 
     @Test
-    void withoutJpaInfrastructureTheContextFailsHard() {
+    void withoutJpaInfrastructureTheConfigurationBacksOff() {
 
-        // Documented current behaviour, and a fragility worth knowing: the class-level
-        // @ConditionalOnMissingBean only guards against an *existing* SpringDataUtil. It does not make
-        // the configuration conditional on JPA being present. Without an EntityManagerFactory the
-        // required field injection of LocalContainerEntityManagerFactoryBean fails and takes the whole
-        // context down - even for applications that only use MongoDB.
+        // Behaviour changed deliberately in T06. Before, the class-level
+        // @ConditionalOnMissingBean only guarded against an *existing* SpringDataUtil and did not make
+        // the configuration conditional on JPA being present: without an EntityManagerFactory the
+        // required field injection of LocalContainerEntityManagerFactoryBean failed and took the whole
+        // context down - even for applications that only use MongoDB. It was masked by the JPA starter
+        // being an optional dependency, but applications with the starter and no configured datasource
+        // did hit it.
         //
-        // In practice this is masked because the JPA starter is an optional dependency: applications
-        // without JPA on the classpath never reach this configuration. Applications *with* the JPA
-        // starter but without a configured datasource do hit it.
+        // Now the configuration is @ConditionalOnClass(JpaContext) + @ConditionalOnBean(
+        // EntityManagerFactory) and simply contributes nothing.
         runner.run(context -> {
-            assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure())
-                    .hasMessageContaining("LocalContainerEntityManagerFactoryBean");
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(
+                    JpaSpringDataUtilConfiguration.BEANNAME_SPRINGDATAUTIL);
         });
 
     }
