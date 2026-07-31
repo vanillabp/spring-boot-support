@@ -155,6 +155,48 @@ class VanillaBpPropertiesBindingTest {
     }
 
     @Test
+    void theHierarchyInitialisationIsIdempotent() {
+
+        // simulates a rebind: the binder may call setters more than once, and a refresh re-runs the
+        // lifecycle. Linking has to survive that, which is why it no longer lives in the setters.
+        runner
+                .withPropertyValues(
+                        "vanillabp.workflow-modules.loan-approval.workflows.LoanApproval.default-adapter=camunda8")
+                .run(context -> {
+                    final var properties = context.getBean(VanillaBpProperties.class);
+
+                    properties.initializeHierarchy();
+                    properties.initializeHierarchy();
+
+                    final var module = properties.getWorkflowModules().get("loan-approval");
+                    assertThat(module.getWorkflowModuleId()).isEqualTo("loan-approval");
+                    assertThat(module.getDefaultProperties()).isSameAs(properties);
+                    final var workflow = module.getWorkflows().get("LoanApproval");
+                    assertThat(workflow.getBpmnProcessId()).isEqualTo("LoanApproval");
+                    assertThat(workflow.getWorkflowModule()).isSameAs(module);
+                });
+
+    }
+
+    @Test
+    void theDefaultCollectionsAreMutable() {
+
+        // The defaults used to be List.of() / Map.of(). Spring Boot's binder mutates an existing value
+        // instead of setting a new one in some paths, which would throw UnsupportedOperationException -
+        // or, with a changed binder strategy, silently skip the setter and lose the back-links.
+        runner.run(context -> {
+            final var properties = context.getBean(VanillaBpProperties.class);
+
+            assertThatNoException().isThrownBy(() -> {
+                properties.getDefaultAdapter().add("camunda7");
+                properties.getWorkflowModules().put("added-later",
+                        new VanillaBpProperties.WorkflowModuleAdapterProperties());
+            });
+        });
+
+    }
+
+    @Test
     void validatePropertiesAcceptsAKnownConfiguration() {
 
         runner

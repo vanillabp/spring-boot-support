@@ -17,7 +17,7 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentEntity;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.repository.support.Repositories;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class MongoDbSpringDataUtil implements SpringDataUtil {
 
@@ -28,6 +28,9 @@ public class MongoDbSpringDataUtil implements SpringDataUtil {
     private final ApplicationContext applicationContext;
 
     private final MongoConverter mongoConverter;
+
+    /** Built lazily and kept, see JpaSpringDataUtil#getRepositories. */
+    private Repositories repositories;
 
     public MongoDbSpringDataUtil(
             final ApplicationContext applicationContext,
@@ -60,7 +63,7 @@ public class MongoDbSpringDataUtil implements SpringDataUtil {
             return (MongoRepository<O, Object>) REPOSITORY_MAP.get(cls);
         }
 
-        var repositories = new Repositories(applicationContext);
+        final var repositories = getRepositories();
 
         Optional<Object> repository;
         do {
@@ -151,7 +154,22 @@ public class MongoDbSpringDataUtil implements SpringDataUtil {
 
     }
 
+    private Repositories getRepositories() {
+
+        var result = repositories;
+        if (result == null) {
+            result = new Repositories(applicationContext);
+            repositories = result;
+        }
+        return result;
+
+    }
+
     /**
+     * Verified against spring-data-mongodb 5.1.0 during the Spring Boot 4.1 migration (2026-07-31):
+     * still line-for-line identical to the original, and there is still no public factory method to use
+     * instead. Re-check on the next Spring Data upgrade.
+     *
      * @see "MongoTemplate#getDefaultMongoConverter(MongoDatabaseFactory)"
      */
     private static MongoConverter getDefaultMongoConverter(
