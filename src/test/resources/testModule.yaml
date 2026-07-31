@@ -1,0 +1,3 @@
+test-module:
+  greeting: from-module-yaml
+  only-in-base: base-value
