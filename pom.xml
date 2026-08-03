@@ -14,7 +14,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <vanillabp.version>1.1.1-SNAPSHOT</vanillabp.version>
+    <vanillabp.version>1.1.0</vanillabp.version>
     <version.java>21</version.java>
   </properties>
 
