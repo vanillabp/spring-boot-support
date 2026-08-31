@@ -1,0 +1,22 @@
+# Deliberately competing value: the workerIdProps property source added by
+# ModuleAndWorkerAwareSpringApplication has to win over this one. See
+# ModuleAndWorkerAwareSpringApplicationBootTest.
+workerId: from-application-yaml
+
+spring:
+  application:
+    name: support-it
+  datasource:
+    url: jdbc:h2:mem:supportit;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+vanillabp:
+  workflow-modules:
+    support-it:
+      adapters:
+        test-adapter:
+          resources-location: classpath*:/workflow-resources/test-adapter

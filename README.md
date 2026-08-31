@@ -18,6 +18,12 @@ public class TaxiApplication {
 }
 ```
 
+## Spring Boot version
+
+Starting with the version documented here, this module requires **Spring Boot 4.1** and **Java 21**.
+There is no dual build: the Spring Boot 3 code paths are gone. Applications still on Spring Boot 3.5
+stay on 1.3.x, which remains functional but will not receive further development.
+
 ## Content
 
 1. [Worker ID](#worker-id)

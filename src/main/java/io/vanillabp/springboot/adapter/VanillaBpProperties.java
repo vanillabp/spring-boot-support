@@ -1,11 +1,14 @@
 package io.vanillabp.springboot.adapter;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -19,9 +22,9 @@ public class VanillaBpProperties {
 
     public static final String PREFIX = "vanillabp";
 
-    private List<String> defaultAdapter = List.of();
+    private List<String> defaultAdapter = new ArrayList<>();
 
-    private Map<String, WorkflowModuleAdapterProperties> workflowModules = Map.of();
+    private Map<String, WorkflowModuleAdapterProperties> workflowModules = new LinkedHashMap<>();
 
     public Map<String, WorkflowModuleAdapterProperties> getWorkflowModules() {
         return workflowModules;
@@ -30,9 +33,29 @@ public class VanillaBpProperties {
     public void setWorkflowModules(Map<String, WorkflowModuleAdapterProperties> workflowModules) {
 
         this.workflowModules = workflowModules;
-        workflowModules.forEach((workflowModuleId, properties) -> {
-            properties.workflowModuleId = workflowModuleId;
-            properties.defaultProperties = this;
+
+    }
+
+    /**
+     * Links every nested properties object to its parent and injects the map key as its id.
+     * <p>
+     * This used to be a side effect of the setters, which made correctness depend on how often and in
+     * which order the configuration-properties binder calls them. Doing it once after binding is
+     * complete is independent of the binder's strategy, and it also covers nested workflows, whose
+     * enclosing objects are not Spring beans and therefore have no lifecycle callback of their own.
+     * <p>
+     * Idempotent on purpose, so a rebind can simply run it again.
+     */
+    @PostConstruct
+    public void initializeHierarchy() {
+
+        workflowModules.forEach((workflowModuleId, workflowModule) -> {
+            workflowModule.workflowModuleId = workflowModuleId;
+            workflowModule.defaultProperties = this;
+            workflowModule.getWorkflows().forEach((bpmnProcessId, workflow) -> {
+                workflow.bpmnProcessId = bpmnProcessId;
+                workflow.workflowModule = workflowModule;
+            });
         });
 
     }
@@ -61,9 +84,9 @@ public class VanillaBpProperties {
 
         VanillaBpProperties defaultProperties;
 
-        private Map<String, AdapterConfiguration> adapters = Map.of();
+        private Map<String, AdapterConfiguration> adapters = new LinkedHashMap<>();
 
-        private Map<String, WorkflowAdapterProperties> workflows = Map.of();
+        private Map<String, WorkflowAdapterProperties> workflows = new LinkedHashMap<>();
 
         public Map<String, WorkflowAdapterProperties> getWorkflows() {
             return workflows;
@@ -71,11 +94,8 @@ public class VanillaBpProperties {
 
         public void setWorkflows(Map<String, WorkflowAdapterProperties> workflows) {
 
+            // back-links are established centrally, see VanillaBpProperties#initializeHierarchy
             this.workflows = workflows;
-            workflows.forEach((bpmnProcessId, properties) -> {
-                properties.bpmnProcessId = bpmnProcessId;
-                properties.workflowModule = this;
-            });
 
         }
 
@@ -115,7 +135,7 @@ public class VanillaBpProperties {
 
     private static class AdapterProperties {
 
-        private List<String> defaultAdapter = List.of();
+        private List<String> defaultAdapter = new ArrayList<>();
 
         public List<String> getDefaultAdapter() {
             return defaultAdapter;

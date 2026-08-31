@@ -27,6 +27,13 @@ public class JpaSpringDataUtil implements SpringDataUtil {
     private final LocalContainerEntityManagerFactoryBean containerEntityManagerFactoryBean;
     
     private final JpaContext jpaContext;
+
+    /**
+     * Built lazily and kept: {@code Repositories} scans the entire set of repository beans on
+     * construction, and it was previously instantiated on every single lookup. The application context
+     * does not change over the lifetime of this object, so one instance is enough.
+     */
+    private Repositories repositories;
     
     public JpaSpringDataUtil(
             final ApplicationContext applicationContext,
@@ -58,7 +65,7 @@ public class JpaSpringDataUtil implements SpringDataUtil {
             return (JpaRepository<O, Object>) REPOSITORY_MAP.get(cls);
         }
         
-        var repositories = new Repositories(applicationContext);
+        final var repositories = getRepositories();
 
         Optional<Object> repository;
         do {
@@ -88,8 +95,8 @@ public class JpaSpringDataUtil implements SpringDataUtil {
                     .getIdType();
         }
         
-        var repositories = new Repositories(applicationContext);
-        
+        final var repositories = getRepositories();
+
         EntityInformation<?, Object> entityInfo;
         do {
             entityInfo = repositories.getEntityInformationFor(cls);
@@ -105,6 +112,17 @@ public class JpaSpringDataUtil implements SpringDataUtil {
         
         return entityInfo.getIdType();
         
+    }
+
+    private Repositories getRepositories() {
+
+        var result = repositories;
+        if (result == null) {
+            result = new Repositories(applicationContext);
+            repositories = result;
+        }
+        return result;
+
     }
 
     private Class<?> getSuperclass(
