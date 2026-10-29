@@ -13,9 +13,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Maven 3.10 writes 'maven-metadata-local.xml' and '_remote.repositories' into the
+      # staging directory of central-publishing-maven-plugin, and the Central Portal refuses
+      # the bundle: "Bundle has content that does NOT have a .pom file". The runner image
+      # ships 3.10 now, so the release brings its own 3.9. Remove this step once a plugin
+      # version stages a clean bundle under Maven 3.10.
+      - name: Use Maven 3.9
+        run: |
+          curl -fsSL https://archive.apache.org/dist/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.tar.gz \
+            | tar xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.9.16/bin" >> "$GITHUB_PATH"
 
       - name: Extract last released version
         run: |
@@ -25,16 +36,16 @@ jobs:
           echo "LAST_RELEASED_VERSION=$SNAP_BASE" >> $GITHUB_ENV
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
-          distribution: adopt
+          distribution: temurin
           java-version: 21
           cache: maven
           server-id: vanillabp-central
           # for secrets use env variables (set in each step which needs it) to avoid leaking them in files
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
-          gpg-passphrase: GPG_PASSPHRASE
+          server-username-env-var: MAVEN_USERNAME
+          server-password-env-var: MAVEN_PASSWORD
+          gpg-passphrase-env-var: GPG_PASSPHRASE
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
 
       - name: Create release branch
@@ -81,7 +92,7 @@ jobs:
           git push origin --tags
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.release_version }}
           name: v${{ github.event.inputs.release_version }}
