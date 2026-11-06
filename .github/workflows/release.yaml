@@ -57,19 +57,11 @@ jobs:
           mvn --batch-mode versions:set -DnewVersion=${{ github.event.inputs.release_version }}
           find . -name pom.xml.versionsBackup -delete
 
-      - name: Check for SNAPSHOT dependencies
+      # a released pom which points at a snapshot cannot be resolved later
+      - name: No SNAPSHOT is left
         run: |
-          SNAPSHOT_POMS=$(grep -R "<.*>.*SNAPSHOT<\/.*>" . --include=pom.xml || true)
-          
-          if [ -n "$SNAPSHOT_POMS" ] || [ -n "$SNAPSHOT_PKGS" ]; then
-            echo "::warning::Found SNAPSHOT dependencies in the project:"
-            [ -n "$SNAPSHOT_POMS" ] && echo "$SNAPSHOT_POMS"
-          else
-            echo "✅ No SNAPSHOT dependencies found."
-          fi
-          # Always exit successfully
-          exit 0
-
+          curl -fsSL -o "$RUNNER_TEMP/release-versions.sh" "https://raw.githubusercontent.com/vanillabp/maven-release-parent/e6c840c50e2ed95412710828df00fa194924edf6/.github/scripts/release-versions.sh"
+          bash "$RUNNER_TEMP/release-versions.sh" no-snapshots
       - name: Build & deploy to Maven Central
         run: |
           mvn --batch-mode -DskipTests -DskipITs -Dgpg.passphrase=$GPG_PASSPHRASE \
